@@ -12,7 +12,7 @@ namespace WaterFilterCBZ
     public partial class MainWindow : Window
     {
         private readonly SensorViewModel _viewModel;
-        private readonly SerialPortService _serialService;
+        private SerialPortService? _serialService;
 
         public MainWindow()
         {
@@ -38,8 +38,34 @@ namespace WaterFilterCBZ
                 }
             };
 
-            // Initialize serial port service with COM4 (user-specified)
-            _serialService = new SerialPortService("COM4", sample =>
+            // Subscribe to connection/disconnection commands from ViewModel
+            _viewModel.ConnectionStatusChanged += OnConnectRequested;
+            _viewModel.DisconnectionStatusChanged += OnDisconnectRequested;
+
+            this.Loaded += (s, e) =>
+            {
+                // Refresh available ports on startup
+                _viewModel.RefreshAvailablePorts();
+                
+                // Initialize with the selected port
+                if (!string.IsNullOrWhiteSpace(_viewModel.SelectedPort))
+                {
+                    InitializeSerialService(_viewModel.SelectedPort);
+                    _serialService?.Connect();
+                }
+            };
+        }
+
+        /// <summary>
+        /// Initialize the serial service with a specific COM port.
+        /// </summary>
+        private void InitializeSerialService(string comPort)
+        {
+            // Dispose existing service if any
+            _serialService?.Dispose();
+
+            // Create new service for the selected port
+            _serialService = new SerialPortService(comPort, sample =>
             {
                 _viewModel.AddSample(sample);
             });
@@ -47,13 +73,49 @@ namespace WaterFilterCBZ
             // Update connection status display
             _serialService.ConnectionStatusChanged += (s, e) =>
             {
-                _viewModel.UpdateConnectionStatus(_serialService.IsConnected, "COM4");
+                _viewModel.UpdateConnectionStatus(_serialService.IsConnected, comPort);
             };
+        }
 
-            this.Loaded += (s, e) =>
+        /// <summary>
+        /// Handle connect request from ViewModel.
+        /// </summary>
+        private void OnConnectRequested()
+        {
+            if (string.IsNullOrWhiteSpace(_viewModel.SelectedPort))
             {
-                _serialService.Connect();
-            };
+                _viewModel.StatusMessage = "Please select a COM port";
+                return;
+            }
+
+            try
+            {
+                // Initialize service for the selected port
+                InitializeSerialService(_viewModel.SelectedPort);
+                _serialService?.Connect();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to connect to {Port}", _viewModel.SelectedPort);
+                _viewModel.StatusMessage = $"Failed to connect: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Handle disconnect request from ViewModel.
+        /// </summary>
+        private void OnDisconnectRequested()
+        {
+            try
+            {
+                _serialService?.Disconnect();
+                _viewModel.UpdateConnectionStatus(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to disconnect");
+                _viewModel.StatusMessage = $"Failed to disconnect: {ex.Message}";
+            }
         }
 
         protected override void OnClosed(EventArgs e)

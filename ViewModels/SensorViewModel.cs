@@ -4,6 +4,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using WaterFilterCBZ.Models;
+using WaterFilterCBZ.Utils;
 using Serilog;
 
 namespace WaterFilterCBZ.ViewModels
@@ -22,9 +23,32 @@ namespace WaterFilterCBZ.ViewModels
         private PlotModel _plotModel = new();
         private string _connectionStatus = "Disconnected";
         private string _statusMessage = "Ready";
+        private ObservableCollection<string> _availablePorts = new();
+        private string? _selectedPort = "COM4";
+        private bool _isConnected = false;
 
         public ObservableCollection<SensorDisplayInfo> Sensors { get; } = new();
+        public ObservableCollection<string> AvailablePorts
+        {
+            get => _availablePorts;
+            set => SetProperty(ref _availablePorts, value);
+        }
+
+        public string? SelectedPort
+        {
+            get => _selectedPort;
+            set => SetProperty(ref _selectedPort, value);
+        }
+
+        public bool IsConnected
+        {
+            get => _isConnected;
+            set => SetProperty(ref _isConnected, value);
+        }
+
         public ICommand ClearDataCommand { get; }
+        public ICommand ConnectCommand { get; }
+        public ICommand DisconnectCommand { get; }
 
         public PlotModel PlotModel
         {
@@ -53,8 +77,74 @@ namespace WaterFilterCBZ.ViewModels
         public SensorViewModel()
         {
             ClearDataCommand = new RelayCommand(ClearAllData);
+            ConnectCommand = new RelayCommand(OnConnect, CanConnect);
+            DisconnectCommand = new RelayCommand(OnDisconnect, CanDisconnect);
             InitializeChart();
+            RefreshAvailablePorts();
         }
+
+        /// <summary>
+        /// Refresh the list of available COM ports.
+        /// </summary>
+        public void RefreshAvailablePorts()
+        {
+            var ports = SerialPortHelper.GetAvailablePorts().OrderBy(p => p).ToList();
+            
+            App.Current?.Dispatcher?.Invoke(() =>
+            {
+                // Clear and repopulate without losing selection if still valid
+                var currentSelection = SelectedPort;
+                AvailablePorts.Clear();
+                
+                foreach (var port in ports)
+                {
+                    AvailablePorts.Add(port);
+                }
+
+                // Restore selection if still available, otherwise select first
+                if (!string.IsNullOrEmpty(currentSelection) && AvailablePorts.Contains(currentSelection))
+                {
+                    SelectedPort = currentSelection;
+                }
+                else if (AvailablePorts.Count > 0)
+                {
+                    SelectedPort = AvailablePorts[0];
+                }
+
+                StatusMessage = $"Found {AvailablePorts.Count} COM port(s)";
+            });
+        }
+
+        private bool CanConnect()
+        {
+            return !IsConnected && !string.IsNullOrWhiteSpace(SelectedPort);
+        }
+
+        private bool CanDisconnect()
+        {
+            return IsConnected;
+        }
+
+        private void OnConnect()
+        {
+            if (string.IsNullOrWhiteSpace(SelectedPort))
+            {
+                StatusMessage = "Please select a COM port";
+                return;
+            }
+
+            // Trigger connection in MainWindow
+            ConnectionStatusChanged?.Invoke();
+        }
+
+        private void OnDisconnect()
+        {
+            // Trigger disconnection in MainWindow
+            DisconnectionStatusChanged?.Invoke();
+        }
+
+        public event Action? ConnectionStatusChanged;
+        public event Action? DisconnectionStatusChanged;
 
         private void InitializeChart()
         {
@@ -185,6 +275,7 @@ namespace WaterFilterCBZ.ViewModels
 
         public void UpdateConnectionStatus(bool isConnected, string? comPort = null)
         {
+            IsConnected = isConnected;
             ConnectionStatus = isConnected
                 ? $"Connected ({comPort})"
                 : "Disconnected";

@@ -9,6 +9,11 @@
         Height="700" Width="1200"
         Background="#F5F5F5" x:Name="MainWindowControl">
 
+    <Window.Resources>
+        <!-- Invert Boolean Converter -->
+        <local:InvertBoolConverter x:Key="InvertBoolConverter"/>
+    </Window.Resources>
+
     <DockPanel LastChildFill="True">
         <!-- Top Status Bar -->
         <Border DockPanel.Dock="Top" Background="#2C3E50" Padding="10" Height="50">
@@ -22,8 +27,9 @@
         </Border>
 
         <!-- Bottom Control Bar -->
-        <Border DockPanel.Dock="Bottom" Background="#ECF0F1" Padding="10" Height="45">
+        <Border DockPanel.Dock="Bottom" Background="#ECF0F1" Padding="10" Height="60">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Clear Data Button -->
                 <Button Command="{Binding ClearDataCommand}" 
                         Content="Clear Data" 
                         Padding="15,8" 
@@ -31,8 +37,56 @@
                         Foreground="White"
                         FontSize="12"
                         FontWeight="Bold"
-                        Cursor="Hand"/>
-                <TextBlock Text="Right-click chart to zoom or pan" Foreground="#7F8C8D" VerticalAlignment="Center" Margin="20,0,0,0" FontSize="11" FontStyle="Italic"/>
+                        Cursor="Hand"
+                        Margin="0,0,10,0"/>
+                
+                <!-- Separator -->
+                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="0,0,10,0"/>
+                
+                <!-- COM Port Selection -->
+                <TextBlock Text="COM Port:" 
+                          Foreground="#2C3E50" 
+                          VerticalAlignment="Center" 
+                          FontWeight="Bold"
+                          Margin="0,0,5,0"/>
+                
+                <ComboBox ItemsSource="{Binding AvailablePorts}" 
+                         SelectedItem="{Binding SelectedPort}" 
+                         Width="100" 
+                         Padding="8,5"
+                         VerticalAlignment="Center"
+                         IsEnabled="{Binding IsConnected, Converter={StaticResource InvertBoolConverter}}"
+                         Margin="0,0,10,0"/>
+                
+                <!-- Connect Button -->
+                <Button Command="{Binding ConnectCommand}" 
+                       Content="Connect" 
+                       Padding="15,8" 
+                       Background="#27AE60" 
+                       Foreground="White"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       Cursor="Hand"
+                       Margin="0,0,10,0"/>
+                
+                <!-- Disconnect Button -->
+                <Button Command="{Binding DisconnectCommand}" 
+                       Content="Disconnect" 
+                       Padding="15,8" 
+                       Background="#E67E22" 
+                       Foreground="White"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       Cursor="Hand"
+                       Margin="0,0,20,0"/>
+                
+                <!-- Info Text -->
+                <TextBlock Text="Right-click chart to zoom or pan" 
+                          Foreground="#7F8C8D" 
+                          VerticalAlignment="Center" 
+                          Margin="20,0,0,0" 
+                          FontSize="11" 
+                          FontStyle="Italic"/>
             </StackPanel>
         </Border>
 

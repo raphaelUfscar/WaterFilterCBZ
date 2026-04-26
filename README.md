@@ -45,20 +45,32 @@ WaterFilterCBZ/
 - **Line Terminator:** `\n` (newline)
 
 ### Message Format
-CSV format: `sensorId,unixTimestamp,value`
+Binary packet frame:
+```
+SOF(0xAA) | LEN | SENDER | RECEIVER | PAYLOAD | CRC(2 bytes) | EOF(0x55)
+```
 
-**Example:**
+Payload types supported by the app:
+- `0x01`: sensor data batch
+- `0x02`: command
+- `0x03`: response
+
+Sensor data payload structure:
 ```
-T1,1620000000,23.4
-T2,1620000001,24.1
-T1,1620000002,23.5
+MSG_TYPE(0x01) | COUNT | SENSOR_BLOCK_1 | SENSOR_BLOCK_2 | ...
 ```
+
+Each sensor block is 10 bytes:
+- `SENSOR_ID` (1 byte)
+- `TIMESTAMP` (4 bytes, uint32 ms)
+- `UNIT_ID` (1 byte)
+- `VALUE` (4 bytes float)
 
 Parsing handles:
-- Whitespace trimming
-- Unix timestamp → LocalDateTime conversion
-- Double value parsing (invariant culture - uses "." as decimal)
-- Comprehensive error logging
+- Frame boundary detection with SOF/EOF
+- CRC-16-CCITT validation
+- Batch sensor entry decoding
+- Thread-safe UI dispatching
 
 ## Key Components
 
@@ -149,7 +161,7 @@ Check log files for detailed diagnostics:
 - `Serial port {PortName} opened at {BaudRate} bps` → Connection success
 - `Failed to open serial port {PortName}` → COM port unavailable
 - `Received sensor sample: {Sample}` → Data parsed successfully
-- `Failed to parse sensor line: {Line}` → Protocol mismatch or corruption
+- `Failed to parse sensor line: {Line}` → Legacy CSV or protocol mismatch / frame corruption
 
 ## Next Steps / Enhancements
 
