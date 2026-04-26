@@ -2,7 +2,6 @@
 using WaterFilterCBZ.ViewModels;
 using WaterFilterCBZ.Services;
 using Serilog;
-using OxyPlot.Wpf;
 
 namespace WaterFilterCBZ
 {
@@ -20,23 +19,6 @@ namespace WaterFilterCBZ
 
             _viewModel = new SensorViewModel();
             DataContext = _viewModel;
-
-            // Add OxyPlot PlotView to ChartContainer
-            var plotView = new PlotView
-            {
-                Model = _viewModel.PlotModel,
-                Foreground = System.Windows.Media.Brushes.Black
-            };
-            ChartContainer.Children.Add(plotView);
-
-            // Bind PlotModel updates
-            _viewModel.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(SensorViewModel.PlotModel))
-                {
-                    plotView.Model = _viewModel.PlotModel;
-                }
-            };
 
             // Subscribe to connection/disconnection commands from ViewModel
             _viewModel.ConnectionStatusChanged += OnConnectRequested;

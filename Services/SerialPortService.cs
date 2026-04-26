@@ -1,6 +1,5 @@
 using System.IO.Ports;
 using System.Collections.Concurrent;
-using System.Linq;
 using WaterFilterCBZ.Models;
 using Serilog;
 
@@ -21,9 +20,12 @@ namespace WaterFilterCBZ.Services
         private Task? _readTask;
         private CancellationTokenSource _cancellationTokenSource = new();
 
-        private const byte SOF = 0xAA;
-        private const byte EOF = 0x55;
-        private const byte ExpectedReceiver = 0x10;
+        private const byte START_BYTE = 0xAA;
+        private const byte END_BYTE = 0x55;
+        private const int SENSOR_ENTRY_SIZE_BYTES = 10; // sensor_id(1) + timestamp(4) + unit_id(1) + float(4)
+        private const int MAX_SENSORS = 4;
+        private static readonly TimeSpan FrameAssemblyTimeout = TimeSpan.FromMilliseconds(350);
+        private DateTime? _sawStartByteAtUtc;
 
         public event EventHandler<EventArgs>? ConnectionStatusChanged;
 
@@ -181,136 +183,126 @@ namespace WaterFilterCBZ.Services
         {
             while (true)
             {
-                int sofIndex = _receiveBuffer.IndexOf(SOF);
-                if (sofIndex < 0)
+                int startIndex = _receiveBuffer.IndexOf(START_BYTE);
+                if (startIndex < 0)
                 {
                     _receiveBuffer.Clear();
+                    _sawStartByteAtUtc = null;
                     return;
                 }
 
-                if (sofIndex > 0)
+                if (startIndex > 0)
                 {
-                    _receiveBuffer.RemoveRange(0, sofIndex);
+                    _receiveBuffer.RemoveRange(0, startIndex);
                 }
 
                 if (_receiveBuffer.Count < 2)
+                {
+                    _sawStartByteAtUtc ??= DateTime.UtcNow;
                     return;
+                }
 
-                byte payloadLength = _receiveBuffer[1];
-                int frameLength = 6 + payloadLength;
+                _sawStartByteAtUtc ??= DateTime.UtcNow;
+                if (_sawStartByteAtUtc.HasValue && DateTime.UtcNow - _sawStartByteAtUtc.Value > FrameAssemblyTimeout)
+                {
+                    Log.Warning("Frame assembly timeout; resetting parser state.");
+                    _receiveBuffer.Clear();
+                    _sawStartByteAtUtc = null;
+                    return;
+                }
 
+                byte count = _receiveBuffer[1];
+                if (count == 0 || count > MAX_SENSORS)
+                {
+                    Log.Warning("Corrupted frame (invalid sensor count={Count}); resyncing.", count);
+                    ResyncToNextStartByte(dropCurrentStartByte: true);
+                    continue;
+                }
+
+                int frameLength = 4 + count * SENSOR_ENTRY_SIZE_BYTES; // 1(start)+1(count)+count*10+1(checksum)+1(end)
                 if (_receiveBuffer.Count < frameLength)
                     return;
 
-                if (_receiveBuffer[frameLength - 1] != EOF)
+                if (_receiveBuffer[frameLength - 1] != END_BYTE)
                 {
-                    Log.Warning("Invalid EOF byte at frame boundary; discarding desynchronized byte.");
-                    _receiveBuffer.RemoveAt(0);
+                    Log.Warning("Invalid END byte at frame boundary; resyncing.");
+                    ResyncToNextStartByte(dropCurrentStartByte: true);
                     continue;
                 }
 
                 var frame = _receiveBuffer.GetRange(0, frameLength).ToArray();
-                if (!ValidateCrc(frame, payloadLength))
+                if (!ValidateChecksum(frame))
                 {
-                    Log.Warning("CRC validation failed for received frame; discarding first byte.");
-                    _receiveBuffer.RemoveAt(0);
+                    Log.Warning("Checksum validation failed; resyncing.");
+                    ResyncToNextStartByte(dropCurrentStartByte: true);
                     continue;
                 }
 
                 ParseFrame(frame);
                 _receiveBuffer.RemoveRange(0, frameLength);
+                _sawStartByteAtUtc = null;
             }
         }
 
-        private bool ValidateCrc(byte[] frame, byte payloadLength)
+        private void ResyncToNextStartByte(bool dropCurrentStartByte)
         {
-            int crcOffset = 4 + payloadLength;
-            ushort expected = (ushort)(frame[crcOffset] | (frame[crcOffset + 1] << 8));
-            ushort actual = ComputeCrcCcitt(frame, 1, 3 + payloadLength);
-            return actual == expected;
-        }
-
-        private static ushort ComputeCrcCcitt(byte[] data, int offset, int length)
-        {
-            ushort crc = 0xFFFF;
-            for (int i = offset; i < offset + length; i++)
+            int searchFrom = dropCurrentStartByte ? 1 : 0;
+            int nextStart = _receiveBuffer.IndexOf(START_BYTE, searchFrom);
+            if (nextStart < 0)
             {
-                crc ^= (ushort)(data[i] << 8);
-                for (int bit = 0; bit < 8; bit++)
-                {
-                    if ((crc & 0x8000) != 0)
-                    {
-                        crc = (ushort)((crc << 1) ^ 0x1021);
-                    }
-                    else
-                    {
-                        crc <<= 1;
-                    }
-                }
+                _receiveBuffer.Clear();
+                _sawStartByteAtUtc = null;
+                return;
             }
 
-            return crc;
+            if (nextStart > 0)
+            {
+                _receiveBuffer.RemoveRange(0, nextStart);
+            }
+
+            _sawStartByteAtUtc = DateTime.UtcNow;
+        }
+
+        private static bool ValidateChecksum(byte[] frame)
+        {
+            if (frame.Length < 4)
+                return false;
+
+            if (frame[0] != START_BYTE || frame[^1] != END_BYTE)
+                return false;
+
+            byte expected = frame[^2];
+
+            int sum = 0;
+            // sum of bytes from 0xAA through last payload byte (excluding checksum and end byte)
+            for (int i = 0; i <= frame.Length - 3; i++)
+            {
+                sum = (sum + frame[i]) & 0xFF;
+            }
+
+            return (byte)sum == expected;
         }
 
         private void ParseFrame(byte[] frame)
         {
-            byte length = frame[1];
-            byte sender = frame[2];
-            byte receiver = frame[3];
-            var payload = frame.Skip(4).Take(length).ToArray();
-
-            if (receiver != ExpectedReceiver)
-            {
-                Log.Debug("Ignoring frame addressed to device ID {Receiver:X2}", receiver);
+            if (frame.Length < 4 || frame[0] != START_BYTE || frame[^1] != END_BYTE)
                 return;
-            }
 
-            if (payload.Length == 0)
-            {
-                Log.Warning("Received empty payload in valid frame");
+            byte count = frame[1];
+            if (count == 0 || count > MAX_SENSORS)
                 return;
-            }
 
-            switch (payload[0])
-            {
-                case 0x01:
-                    ParseSensorDataPayload(payload);
-                    break;
-                case 0x02:
-                    Log.Debug("Command frame received from sender {Sender:X2}", sender);
-                    break;
-                case 0x03:
-                    Log.Debug("Response frame received from sender {Sender:X2}", sender);
-                    break;
-                default:
-                    Log.Warning("Unknown message type {MessageType:X2}", payload[0]);
-                    break;
-            }
-        }
-
-        private void ParseSensorDataPayload(byte[] payload)
-        {
-            if (payload.Length < 2)
-            {
-                Log.Warning("Sensor data payload is too short");
+            int expectedFrameLength = 4 + count * SENSOR_ENTRY_SIZE_BYTES;
+            if (frame.Length != expectedFrameLength)
                 return;
-            }
-
-            byte count = payload[1];
-            int expectedLength = 2 + count * 10;
-            if (payload.Length != expectedLength)
-            {
-                Log.Warning("Sensor data payload length mismatch: expected {Expected} bytes, got {Actual} bytes", expectedLength, payload.Length);
-                return;
-            }
 
             for (int i = 0; i < count; i++)
             {
-                int blockStart = 2 + i * 10;
-                byte sensorId = payload[blockStart];
-                uint timestampMs = BitConverter.ToUInt32(payload, blockStart + 1);
-                byte unitId = payload[blockStart + 5];
-                float value = BitConverter.ToSingle(payload, blockStart + 6);
+                int entryStart = 2 + i * SENSOR_ENTRY_SIZE_BYTES;
+                byte sensorId = frame[entryStart];
+                uint timestampMs = BitConverter.ToUInt32(frame, entryStart + 1);
+                byte unitId = frame[entryStart + 5];
+                float value = BitConverter.ToSingle(frame, entryStart + 6);
 
                 var sample = new SensorSample
                 {

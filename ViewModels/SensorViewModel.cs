@@ -16,11 +16,12 @@ namespace WaterFilterCBZ.ViewModels
     public class SensorViewModel : ViewModelBase
     {
         private readonly Dictionary<string, SensorDisplayInfo> _sensorMap = new();
+        private readonly Dictionary<string, int> _sensorPlotIndex = new();
+        private readonly PlotModel[] _plots = new PlotModel[4];
         private int _sampleCount;
         private DateTime _lastUIUpdate = DateTime.Now;
         private const int UI_UPDATE_THRESHOLD_MS = 100; // ~10 FPS max
 
-        private PlotModel _plotModel = new();
         private string _connectionStatus = "Disconnected";
         private string _statusMessage = "Ready";
         private ObservableCollection<string> _availablePorts = new();
@@ -50,11 +51,10 @@ namespace WaterFilterCBZ.ViewModels
         public ICommand ConnectCommand { get; }
         public ICommand DisconnectCommand { get; }
 
-        public PlotModel PlotModel
-        {
-            get => _plotModel;
-            set => SetProperty(ref _plotModel, value);
-        }
+        public PlotModel PlotModel1 => _plots[0];
+        public PlotModel PlotModel2 => _plots[1];
+        public PlotModel PlotModel3 => _plots[2];
+        public PlotModel PlotModel4 => _plots[3];
 
         public string ConnectionStatus
         {
@@ -79,7 +79,7 @@ namespace WaterFilterCBZ.ViewModels
             ClearDataCommand = new RelayCommand(ClearAllData);
             ConnectCommand = new RelayCommand(OnConnect, CanConnect);
             DisconnectCommand = new RelayCommand(OnDisconnect, CanDisconnect);
-            InitializeChart();
+            InitializeCharts();
             RefreshAvailablePorts();
         }
 
@@ -146,34 +146,37 @@ namespace WaterFilterCBZ.ViewModels
         public event Action? ConnectionStatusChanged;
         public event Action? DisconnectionStatusChanged;
 
-        private void InitializeChart()
+        private void InitializeCharts()
         {
-            PlotModel = new PlotModel
+            for (int i = 0; i < _plots.Length; i++)
             {
-                Title = "Real-Time Sensor Monitor (4-10 Sensors)",
-                Background = OxyColor.FromRgb(240, 240, 240)
-            };
+                _plots[i] = new PlotModel
+                {
+                    Title = $"Sensor {i + 1}",
+                    Background = OxyColor.FromRgb(250, 250, 250)
+                };
 
-            // X-axis: Time
-            var xAxis = new DateTimeAxis
-            {
-                Position = AxisPosition.Bottom,
-                Title = "Time",
-                IntervalType = DateTimeIntervalType.Seconds,
-                StringFormat = "HH:mm:ss"
-            };
-            PlotModel.Axes.Add(xAxis);
+                _plots[i].Axes.Add(new DateTimeAxis
+                {
+                    Position = AxisPosition.Bottom,
+                    Title = "Time",
+                    IntervalType = DateTimeIntervalType.Seconds,
+                    StringFormat = "HH:mm:ss"
+                });
 
-            // Y-axis: Sensor Value
-            var yAxis = new LinearAxis
-            {
-                Position = AxisPosition.Left,
-                Title = "Value",
-                Key = "Y"
-            };
-            PlotModel.Axes.Add(yAxis);
+                _plots[i].Axes.Add(new LinearAxis
+                {
+                    Position = AxisPosition.Left,
+                    Title = "Value"
+                });
+            }
 
-            Log.Debug("Chart initialized with axes");
+            OnPropertyChanged(nameof(PlotModel1));
+            OnPropertyChanged(nameof(PlotModel2));
+            OnPropertyChanged(nameof(PlotModel3));
+            OnPropertyChanged(nameof(PlotModel4));
+
+            Log.Debug("Charts initialized (2x2)");
         }
 
         /// <summary>
@@ -228,23 +231,35 @@ namespace WaterFilterCBZ.ViewModels
 
         private void UpdateChartForSensor(SensorDisplayInfo displayInfo, SensorSample sample)
         {
-            // Find or create line series for this sensor
-            var series = PlotModel.Series
-                .OfType<LineSeries>()
-                .FirstOrDefault(s => s.Title == displayInfo.SensorId);
+            if (!_sensorPlotIndex.TryGetValue(displayInfo.SensorId, out var plotIndex))
+            {
+                plotIndex = _sensorPlotIndex.Count;
+                if (plotIndex >= _plots.Length)
+                {
+                    // Ignore sensors beyond 4 plots
+                    return;
+                }
+
+                _sensorPlotIndex[displayInfo.SensorId] = plotIndex;
+                _plots[plotIndex].Title = $"Sensor {displayInfo.SensorId}";
+            }
+
+            var model = _plots[plotIndex];
+
+            // Find or create series for this sensor (one per plot)
+            var series = model.Series.OfType<LineSeries>().FirstOrDefault();
 
             if (series == null)
             {
                 series = new LineSeries
                 {
-                    Title = displayInfo.SensorId,
-                    YAxisKey = "Y"
+                    Title = displayInfo.SensorId
                 };
-                PlotModel.Series.Add(series);
+                model.Series.Add(series);
             }
 
             // Add data point
-            var dateTimeAxis = PlotModel.Axes.OfType<DateTimeAxis>().FirstOrDefault();
+            var dateTimeAxis = model.Axes.OfType<DateTimeAxis>().FirstOrDefault();
             if (dateTimeAxis != null)
             {
                 var xValue = DateTimeAxis.ToDouble(sample.Timestamp);
@@ -258,16 +273,21 @@ namespace WaterFilterCBZ.ViewModels
             }
 
             // Update plot view
-            PlotModel.InvalidatePlot(updateData: false);
+            model.InvalidatePlot(updateData: true);
         }
 
         public void ClearAllData()
         {
             _sensorMap.Clear();
+            _sensorPlotIndex.Clear();
             Sensors.Clear();
             SampleCount = 0;
-            PlotModel.Series.Clear();
-            PlotModel.InvalidatePlot(true);
+            foreach (var model in _plots)
+            {
+                model.Series.Clear();
+                model.Title = "Sensor";
+                model.InvalidatePlot(true);
+            }
 
             Log.Information("All sensor data cleared");
             StatusMessage = "Data cleared";
@@ -291,16 +311,21 @@ namespace WaterFilterCBZ.ViewModels
     /// <summary>
     /// Represents display information for a single sensor.
     /// </summary>
-    public class SensorDisplayInfo
+    public class SensorDisplayInfo : ViewModelBase
     {
         private double _currentValue;
         private double _minValue = double.MaxValue;
         private double _maxValue = double.MinValue;
         private double _avgValue;
         private int _readingCount;
+        private DateTime _lastUpdate;
 
         public string SensorId { get; }
-        public DateTime LastUpdate { get; set; }
+        public DateTime LastUpdate
+        {
+            get => _lastUpdate;
+            set => SetProperty(ref _lastUpdate, value);
+        }
 
         public double CurrentValue => _currentValue;
         public double MinValue => _minValue;
@@ -311,7 +336,7 @@ namespace WaterFilterCBZ.ViewModels
         public SensorDisplayInfo(string sensorId)
         {
             SensorId = sensorId;
-            LastUpdate = DateTime.Now;
+            _lastUpdate = DateTime.Now;
         }
 
         public void AddValue(double value)
@@ -321,6 +346,12 @@ namespace WaterFilterCBZ.ViewModels
             _maxValue = Math.Max(_maxValue, value);
             _readingCount++;
             _avgValue = (_avgValue * (_readingCount - 1) + value) / _readingCount;
+
+            OnPropertyChanged(nameof(CurrentValue));
+            OnPropertyChanged(nameof(MinValue));
+            OnPropertyChanged(nameof(MaxValue));
+            OnPropertyChanged(nameof(AvgValue));
+            OnPropertyChanged(nameof(ReadingCount));
         }
     }
 }

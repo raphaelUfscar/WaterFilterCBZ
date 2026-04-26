@@ -1,6 +1,7 @@
 ﻿<Window x:Class="WaterFilterCBZ.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WaterFilterCBZ"
@@ -98,7 +99,29 @@
             </Grid.ColumnDefinitions>
 
             <!-- OxyPlot Chart Container -->
-            <Grid Grid.Column="0" x:Name="ChartContainer" Background="White" Margin="10"/>
+            <Grid Grid.Column="0" Background="White" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Row="0" Grid.Column="0" Margin="8" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+                    <oxy:PlotView Model="{Binding PlotModel1}" />
+                </Border>
+                <Border Grid.Row="0" Grid.Column="1" Margin="8" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+                    <oxy:PlotView Model="{Binding PlotModel2}" />
+                </Border>
+                <Border Grid.Row="1" Grid.Column="0" Margin="8" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+                    <oxy:PlotView Model="{Binding PlotModel3}" />
+                </Border>
+                <Border Grid.Row="1" Grid.Column="1" Margin="8" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+                    <oxy:PlotView Model="{Binding PlotModel4}" />
+                </Border>
+            </Grid>
 
             <!-- Sensor List Panel -->
             <StackPanel Grid.Column="1" Background="White" Margin="0,10,10,10" MinWidth="250">
