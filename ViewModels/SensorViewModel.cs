@@ -19,8 +19,8 @@ namespace WaterFilterCBZ.ViewModels
         private readonly Dictionary<string, int> _sensorPlotIndex = new();
         private readonly PlotModel[] _plots = new PlotModel[4];
         private int _sampleCount;
-        private DateTime _lastUIUpdate = DateTime.Now;
-        private const int UI_UPDATE_THRESHOLD_MS = 100; // ~10 FPS max
+        private readonly Dictionary<string, DateTime> _lastPlotUpdateBySensor = new();
+        private const int PLOT_UPDATE_THRESHOLD_MS = 50; // per-sensor throttle
 
         private string _connectionStatus = "Disconnected";
         private string _statusMessage = "Ready";
@@ -210,16 +210,16 @@ namespace WaterFilterCBZ.ViewModels
                 displayInfo.LastUpdate = sample.Timestamp;
                 SampleCount++;
 
-                // Throttle UI updates to ~10 FPS to avoid overwhelming
+                // Update the correct chart for this sensor (per-sensor throttled)
                 var now = DateTime.Now;
-                if ((now - _lastUIUpdate).TotalMilliseconds >= UI_UPDATE_THRESHOLD_MS)
+                if (!_lastPlotUpdateBySensor.TryGetValue(sample.SensorId, out var lastPlotUpdate) ||
+                    (now - lastPlotUpdate).TotalMilliseconds >= PLOT_UPDATE_THRESHOLD_MS)
                 {
-                    _lastUIUpdate = now;
+                    _lastPlotUpdateBySensor[sample.SensorId] = now;
 
-                    App.Current?.Dispatcher?.Invoke(() =>
+                    App.Current?.Dispatcher?.BeginInvoke(() =>
                     {
                         UpdateChartForSensor(displayInfo, sample);
-                        OnPropertyChanged(nameof(Sensors));
                     });
                 }
             }
@@ -274,12 +274,21 @@ namespace WaterFilterCBZ.ViewModels
 
             // Update plot view
             model.InvalidatePlot(updateData: true);
+
+            Log.Debug(
+                "Graph updated: sensor={SensorId} plotIndex={PlotIndex} points={PointCount} value={Value:F3} time={Timestamp:HH:mm:ss.fff}",
+                displayInfo.SensorId,
+                plotIndex,
+                series.Points.Count,
+                sample.Value,
+                sample.Timestamp);
         }
 
         public void ClearAllData()
         {
             _sensorMap.Clear();
             _sensorPlotIndex.Clear();
+            _lastPlotUpdateBySensor.Clear();
             Sensors.Clear();
             SampleCount = 0;
             foreach (var model in _plots)
