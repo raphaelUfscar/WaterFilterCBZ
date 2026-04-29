@@ -50,7 +50,8 @@ jobs:
     env:
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      # Prefer Variables, fallback to Secrets (either works)
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY || secrets.SONAR_PROJECT_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -96,7 +97,9 @@ jobs:
       - name: SonarScanner begin
         shell: pwsh
         run: |
-          if (-not $env:SONAR_PROJECT_KEY) { throw "Missing repository variable SONAR_PROJECT_KEY" }
+          if (-not $env:SONAR_PROJECT_KEY) {
+            throw "Missing SONAR_PROJECT_KEY. Set it in GitHub: Settings → Secrets and variables → Actions → Variables (recommended) or Secrets."
+          }
           if (-not $env:SONAR_HOST_URL) { throw "Missing secret SONAR_HOST_URL" }
           if (-not $env:SONAR_TOKEN) { throw "Missing secret SONAR_TOKEN" }
 
