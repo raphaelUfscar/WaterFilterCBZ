@@ -19,6 +19,7 @@ jobs:
 
     env:
       PROJECT_PATH: WaterFilterCBZ.csproj
+      TEST_PROJECT_PATH: WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj
       CONFIGURATION: Release
 
     steps:
@@ -38,23 +39,15 @@ jobs:
             global.json
 
       - name: Restore
-        run: dotnet restore "${{ env.PROJECT_PATH }}"
+        run: |
+          dotnet restore "${{ env.PROJECT_PATH }}"
+          dotnet restore "${{ env.TEST_PROJECT_PATH }}"
 
       - name: Build
         run: dotnet build "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
-      - name: Test (if any test projects exist)
-        shell: pwsh
-        run: |
-          $testProjects = Get-ChildItem -Path . -Recurse -Filter *.csproj |
-            Where-Object { $_.Name -match '(?i)test' -or $_.FullName -match '(?i)\\tests?\\' }
-
-          if (-not $testProjects) {
-            Write-Host "No test projects found. Skipping dotnet test."
-            exit 0
-          }
-
-          dotnet test -c "${{ env.CONFIGURATION }}" --no-build
+      - name: Test
+        run: dotnet test "${{ env.TEST_PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
       - name: Publish
         run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-build -o "${{ github.workspace }}\artifacts\publish"
