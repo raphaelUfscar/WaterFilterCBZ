@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="WaterFilterCBZ.Tests\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Serial Port Communication -->
     <PackageReference Include="System.IO.Ports" Version="9.0.0" />
     
