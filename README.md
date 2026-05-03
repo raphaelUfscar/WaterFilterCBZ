@@ -163,35 +163,6 @@ Check log files for detailed diagnostics:
 - `Received sensor sample: {Sample}` → Data parsed successfully
 - `Failed to parse sensor line: {Line}` → Legacy CSV or protocol mismatch / frame corruption
 
-## Next Steps / Enhancements
-
-1. **COM Port Selection UI**
-   - Auto-discover available ports at startup
-   - Dropdown selector in status bar
-   - Reconnect button
-
-2. **Data Export**
-   - CSV export of current view
-   - JSON-L streaming export
-
-3. **Sensor Calibration**
-   - Per-sensor offset/scale factors
-   - Persistent configuration files
-
-4. **Advanced Charting**
-   - Multiple Y-axes for sensors with different ranges
-   - Annotation markers (thresholds, alarms)
-   - Moving average overlay
-
-5. **Alarms & Thresholds**
-   - Per-sensor min/max alerts
-   - Visual/audio notifications
-   - Alert log history
-
-6. **Unit Testing**
-   - SerialPortService mock tests
-   - SensorSample CSV parser unit tests
-   - ViewModel MVVM binding tests
 
 ## File Locations
 
