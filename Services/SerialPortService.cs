@@ -6,10 +6,22 @@ using Serilog;
 namespace WaterFilterCBZ.Services
 {
     /// <summary>
+    /// Interface for Serial Port communication to allow for mocking during tests.
+    /// </summary>
+    public interface ISerialPortService : IDisposable
+    {
+        bool IsConnected { get; }
+        event EventHandler<EventArgs>? ConnectionStatusChanged;
+        void Connect();
+        void Disconnect();
+        void SetPort(string portName);
+    }
+
+    /// <summary>
     /// Handles serial port communication with the microcontroller.
     /// Reads framed binary packets, validates CRC, and dispatches samples.
     /// </summary>
-    public class SerialPortService : IDisposable
+    public class SerialPortService : ISerialPortService
     {
         private SerialPort? _port;
         private string _portName;
@@ -20,6 +32,7 @@ namespace WaterFilterCBZ.Services
         private Task? _readTask;
         private CancellationTokenSource _cancellationTokenSource = new();
 
+        public int BaudRate { get; set; } = 115200;
         private const byte START_BYTE = 0xAA;
         private const byte END_BYTE = 0x55;
         private const int SENSOR_ENTRY_SIZE_BYTES = 10; // sensor_id(1) + timestamp(4) + unit_id(1) + float(4)
@@ -63,7 +76,7 @@ namespace WaterFilterCBZ.Services
 
             try
             {
-                _port = new SerialPort(_portName, 115200)
+                _port = new SerialPort(_portName, BaudRate)
                 {
                     DataBits = 8,
                     Parity = Parity.None,
@@ -316,12 +329,21 @@ namespace WaterFilterCBZ.Services
             }
         }
 
-        private static DateTime DecodeTimestamp(uint timestampMs)
+        private DateTime? _mcuStartTime;
+        private uint _firstMcuTimestamp;
+
+        private DateTime DecodeTimestamp(uint timestampMs)
         {
-            // MCU timestamp is sent as a 32-bit millisecond counter.
-            // The app uses arrival time for display because absolute epoch
-            // values cannot be reliably represented in a 32-bit millisecond field.
-            return DateTime.Now;
+            // Professional approach: Sync MCU internal clock with PC wall-clock on first packet
+            if (!_mcuStartTime.HasValue)
+            {
+                _mcuStartTime = DateTime.Now;
+                _firstMcuTimestamp = timestampMs;
+                return _mcuStartTime.Value;
+            }
+
+            long diffMs = (long)timestampMs - _firstMcuTimestamp;
+            return _mcuStartTime.Value.AddMilliseconds(diffMs);
         }
 
         private void OnConnectionStatusChanged()
@@ -331,12 +353,22 @@ namespace WaterFilterCBZ.Services
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
             if (_isDisposed)
                 return;
 
-            Disconnect();
-            _cancellationTokenSource?.Dispose();
-            _port?.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _cancellationTokenSource?.Dispose();
+                _port?.Dispose();
+            }
+
             _isDisposed = true;
         }
     }
