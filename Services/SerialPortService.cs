@@ -353,12 +353,22 @@ namespace WaterFilterCBZ.Services
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
             if (_isDisposed)
                 return;
 
-            Disconnect();
-            _cancellationTokenSource?.Dispose();
-            _port?.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _cancellationTokenSource?.Dispose();
+                _port?.Dispose();
+            }
+
             _isDisposed = true;
         }
     }

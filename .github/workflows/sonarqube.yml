@@ -43,7 +43,7 @@ jobs:
             /k:"raphaelUfscar_WaterFilterCBZ" `
             /o:"raphaelufscar" `
             /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage/*.xml" `
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" `
             /d:sonar.verbose=true
 
       - name: Build
@@ -56,9 +56,17 @@ jobs:
             --no-build `
             --configuration Release `
             --logger "trx" `
-            /p:CollectCoverage=true `
-            /p:CoverletOutput=./TestResults/coverage/ `
-            /p:CoverletOutputFormat=opencover
+            --collect:"XPlat Code Coverage" `
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+
+      - name: Verify coverage report
+        run: |
+          $coverageReports = Get-ChildItem -Path . -Recurse -Filter coverage.opencover.xml
+          if ($coverageReports.Count -eq 0) {
+            throw "No OpenCover coverage report was generated."
+          }
+
+          $coverageReports | ForEach-Object { Write-Host "Found coverage report: $($_.FullName)" }
 
       # 🔥 END SONAR
       - name: Sonar End
