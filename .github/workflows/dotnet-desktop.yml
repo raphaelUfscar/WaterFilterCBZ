@@ -1,31 +1,45 @@
 name: .NET Desktop (WPF)
 
+# Run this workflow whenever changes land on main or a pull request targets main.
+# It verifies that the WPF application restores, builds, tests, publishes, and
+# uploads a runnable build artifact.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+# The workflow only needs read access to repository contents because it does not
+# create releases, push commits, or modify repository metadata.
 permissions:
   contents: read
 
+# Cancel older runs for the same branch or pull request when a newer commit is
+# pushed. This keeps CI focused on the latest revision and saves runner time.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
+    # WPF projects target Windows-specific frameworks, so the job must run on a
+    # Windows runner rather than Linux or macOS.
     runs-on: windows-latest
 
+    # Centralized paths and build configuration used by the steps below.
     env:
       PROJECT_PATH: WaterFilterCBZ.csproj
       TEST_PROJECT_PATH: WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj
       CONFIGURATION: Release
 
     steps:
+      # Download the repository source code into the runner workspace.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install the .NET 10 SDK and enable NuGet dependency caching. The cache
+      # keys are based on project and package configuration files, so dependency
+      # restores are faster when those files have not changed.
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -38,20 +52,29 @@ jobs:
             **/Directory.Packages.props
             global.json
 
+      # Restore NuGet packages for both the WPF app and the unit test project.
+      # Keeping restore explicit lets later build/test steps use --no-restore.
       - name: Restore
         run: |
           dotnet restore "${{ env.PROJECT_PATH }}"
           dotnet restore "${{ env.TEST_PROJECT_PATH }}"
 
+      # Compile the WPF application in Release mode. --no-restore keeps this
+      # step deterministic and avoids doing package restore twice.
       - name: Build
         run: dotnet build "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
+      # Run the xUnit test project against the already restored dependencies.
       - name: Test
         run: dotnet test "${{ env.TEST_PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
+      # Publish the application output into the workflow artifact directory.
+      # --no-build reuses the Release build produced earlier in the job.
       - name: Publish
         run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-build -o "${{ github.workspace }}\artifacts\publish"
 
+      # Upload the published app files so they can be downloaded from the
+      # GitHub Actions run summary.
       - name: Upload publish artifact
         uses: actions/upload-artifact@v4
         with:
