@@ -36,11 +36,13 @@ jobs:
 
       # 🔥 START SONAR (WITH COVERAGE PATH)
       - name: Sonar Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           dotnet sonarscanner begin `
             /k:"raphaelUfscar_WaterFilterCBZ" `
             /o:"raphaelufscar" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+            /d:sonar.token="$env:SONAR_TOKEN" `
             /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage/*.xml" `
             /d:sonar.verbose=true
 
@@ -60,4 +62,6 @@ jobs:
 
       # 🔥 END SONAR
       - name: Sonar End
-        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
