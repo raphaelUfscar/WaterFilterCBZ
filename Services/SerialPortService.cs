@@ -1,5 +1,6 @@
 using System.IO.Ports;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using WaterFilterCBZ.Models;
 using Serilog;
 
@@ -17,22 +18,119 @@ namespace WaterFilterCBZ.Services
         void SetPort(string portName);
     }
 
+    internal sealed class SerialPortErrorEventArgs(string error) : EventArgs
+    {
+        public string Error { get; } = error;
+    }
+
+    internal interface ISerialConnection : IDisposable
+    {
+        bool IsOpen { get; }
+        int BytesToRead { get; }
+        event EventHandler<EventArgs>? DataReceived;
+        event EventHandler<SerialPortErrorEventArgs>? ErrorReceived;
+        void Open();
+        int Read(byte[] buffer, int offset, int count);
+        void Close();
+    }
+
+    [ExcludeFromCodeCoverage]
+    internal sealed class SerialPortConnection : ISerialConnection
+    {
+        private readonly SerialPort _port;
+
+        public SerialPortConnection(string portName, int baudRate)
+        {
+            _port = new SerialPort(portName, baudRate)
+            {
+                DataBits = 8,
+                Parity = Parity.None,
+                StopBits = StopBits.One,
+                ReadTimeout = 500,
+                WriteTimeout = 500
+            };
+
+            _port.DataReceived += (_, _) => DataReceived?.Invoke(this, EventArgs.Empty);
+            _port.ErrorReceived += (_, e) => ErrorReceived?.Invoke(this, new SerialPortErrorEventArgs(e.EventType.ToString()));
+        }
+
+        public bool IsOpen => _port.IsOpen;
+        public int BytesToRead => _port.BytesToRead;
+        public event EventHandler<EventArgs>? DataReceived;
+        public event EventHandler<SerialPortErrorEventArgs>? ErrorReceived;
+
+        public void Open() => _port.Open();
+
+        public int Read(byte[] buffer, int offset, int count) => _port.Read(buffer, offset, count);
+
+        public void Close() => _port.Close();
+
+        public void Dispose() => _port.Dispose();
+    }
+
     /// <summary>
     /// Handles serial port communication with the microcontroller.
     /// Reads framed binary packets, validates CRC, and dispatches samples.
     /// </summary>
     public class SerialPortService : ISerialPortService
     {
-        private SerialPort? _port;
+        private ISerialConnection? _port;
         private string _portName;
         private readonly Action<SensorSample> _onSampleReceived;
+        private readonly Func<string, int, ISerialConnection> _connectionFactory;
         private readonly ConcurrentQueue<byte[]> _byteQueue = new();
         private readonly List<byte> _receiveBuffer = new();
+        private readonly object _connectionLock = new();
         private bool _isDisposed = false;
         private Task? _readTask;
-        private CancellationTokenSource _cancellationTokenSource = new();
+        private Task? _heartbeatTask;
+        private CancellationTokenSource? _connectionCancellationTokenSource;
+        private bool _manualDisconnectRequested = true;
+        private int _reconnectInProgress;
+        private DateTime _lastDataReceivedUtc = DateTime.MinValue;
+        private TimeSpan _heartbeatInterval = TimeSpan.FromSeconds(2);
+        private TimeSpan _heartbeatTimeout = TimeSpan.FromSeconds(10);
+        private TimeSpan _reconnectDelay = TimeSpan.FromSeconds(3);
 
         public int BaudRate { get; set; } = 115200;
+        public bool AutoReconnectEnabled { get; set; } = true;
+
+        public TimeSpan HeartbeatInterval
+        {
+            get => _heartbeatInterval;
+            set
+            {
+                if (value <= TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Heartbeat interval must be greater than zero.");
+
+                _heartbeatInterval = value;
+            }
+        }
+
+        public TimeSpan HeartbeatTimeout
+        {
+            get => _heartbeatTimeout;
+            set
+            {
+                if (value <= TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Heartbeat timeout must be greater than zero.");
+
+                _heartbeatTimeout = value;
+            }
+        }
+
+        public TimeSpan ReconnectDelay
+        {
+            get => _reconnectDelay;
+            set
+            {
+                if (value < TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Reconnect delay cannot be negative.");
+
+                _reconnectDelay = value;
+            }
+        }
+
         private const byte START_BYTE = 0xAA;
         private const byte END_BYTE = 0x55;
         private const int SENSOR_ENTRY_SIZE_BYTES = 10; // sensor_id(1) + timestamp(4) + unit_id(1) + float(4)
@@ -45,9 +143,18 @@ namespace WaterFilterCBZ.Services
         public bool IsConnected => _port?.IsOpen ?? false;
 
         public SerialPortService(string portName, Action<SensorSample> onSampleReceived)
+            : this(portName, onSampleReceived, (name, baudRate) => new SerialPortConnection(name, baudRate))
+        {
+        }
+
+        internal SerialPortService(
+            string portName,
+            Action<SensorSample> onSampleReceived,
+            Func<string, int, ISerialConnection> connectionFactory)
         {
             _portName = portName;
             _onSampleReceived = onSampleReceived ?? throw new ArgumentNullException(nameof(onSampleReceived));
+            _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         }
 
         /// <summary>
@@ -71,79 +178,151 @@ namespace WaterFilterCBZ.Services
 
         public void Connect()
         {
-            if (IsConnected)
-                return;
-
-            try
+            lock (_connectionLock)
             {
-                _port = new SerialPort(_portName, BaudRate)
-                {
-                    DataBits = 8,
-                    Parity = Parity.None,
-                    StopBits = StopBits.One,
-                    ReadTimeout = 500,
-                    WriteTimeout = 500
-                };
+                _manualDisconnectRequested = false;
 
-                _port.DataReceived += OnDataReceived;
-                _port.ErrorReceived += OnErrorReceived;
+                if (IsConnected)
+                    return;
 
-                _port.Open();
-                Log.Information("Serial port {PortName} opened at {BaudRate} bps", _portName, 115200);
-
-                _cancellationTokenSource = new CancellationTokenSource();
-                _readTask = Task.Run(() => ProcessIncomingDataAsync(_cancellationTokenSource.Token));
-
-                OnConnectionStatusChanged();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to open serial port {PortName}", _portName);
-                OnConnectionStatusChanged();
+                TryOpenPort();
             }
         }
 
         public void Disconnect()
         {
-            if (!IsConnected)
-                return;
+            _manualDisconnectRequested = true;
+            ClosePort(raiseStatusChanged: true);
+        }
+
+        private bool TryOpenPort()
+        {
+            ISerialConnection? port = null;
 
             try
             {
-                _cancellationTokenSource?.Cancel();
-                _readTask?.Wait(TimeSpan.FromSeconds(2));
+                ClosePort(raiseStatusChanged: false);
 
-                if (_port != null)
+                port = _connectionFactory(_portName, BaudRate);
+                port.DataReceived += OnDataReceived;
+                port.ErrorReceived += OnErrorReceived;
+                port.Open();
+
+                _port = port;
+                _lastDataReceivedUtc = DateTime.UtcNow;
+                _connectionCancellationTokenSource = new CancellationTokenSource();
+
+                var token = _connectionCancellationTokenSource.Token;
+                _readTask = Task.Run(() => ProcessIncomingDataAsync(token), token);
+                _heartbeatTask = Task.Run(() => MonitorHeartbeatAsync(token), token);
+
+                Log.Information("Serial port {PortName} opened at {BaudRate} bps", _portName, BaudRate);
+                OnConnectionStatusChanged();
+                port = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to open serial port {PortName}", _portName);
+                if (port != null)
                 {
-                    _port.DataReceived -= OnDataReceived;
-                    _port.ErrorReceived -= OnErrorReceived;
-                    _port.Close();
-                    _port.Dispose();
-                    _port = null;
+                    port.DataReceived -= OnDataReceived;
+                    port.ErrorReceived -= OnErrorReceived;
+                    port.Dispose();
                 }
 
-                Log.Information("Serial port {PortName} closed", _portName);
+                ClosePort(raiseStatusChanged: false);
                 OnConnectionStatusChanged();
+                return false;
+            }
+        }
+
+        private void ClosePort(bool raiseStatusChanged)
+        {
+            ISerialConnection? portToClose;
+            CancellationTokenSource? cancellationTokenSource;
+            Task? readTask;
+            Task? heartbeatTask;
+            bool wasConnected;
+
+            lock (_connectionLock)
+            {
+                portToClose = _port;
+                cancellationTokenSource = _connectionCancellationTokenSource;
+                readTask = _readTask;
+                heartbeatTask = _heartbeatTask;
+                wasConnected = portToClose?.IsOpen ?? false;
+
+                _port = null;
+                _connectionCancellationTokenSource = null;
+                _readTask = null;
+                _heartbeatTask = null;
+                _byteQueue.Clear();
+                _receiveBuffer.Clear();
+                _sawStartByteAtUtc = null;
+            }
+
+            try
+            {
+                cancellationTokenSource?.Cancel();
+                WaitForTaskToStop(readTask);
+                WaitForTaskToStop(heartbeatTask);
+
+                if (portToClose != null)
+                {
+                    portToClose.DataReceived -= OnDataReceived;
+                    portToClose.ErrorReceived -= OnErrorReceived;
+
+                    if (portToClose.IsOpen)
+                    {
+                        portToClose.Close();
+                    }
+
+                    portToClose.Dispose();
+                    Log.Information("Serial port {PortName} closed", _portName);
+                }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Error closing serial port {PortName}", _portName);
             }
+            finally
+            {
+                cancellationTokenSource?.Dispose();
+            }
+
+            if (raiseStatusChanged && wasConnected)
+                OnConnectionStatusChanged();
         }
 
-        private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
+        private static void WaitForTaskToStop(Task? task)
         {
-            if (_port == null || !_port.IsOpen)
+            if (task == null || task.Id == Task.CurrentId)
                 return;
 
             try
             {
-                int bytesToRead = _port.BytesToRead;
+                task.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException or TaskCanceledException))
+            {
+                // Expected when shutting down the read and heartbeat tasks.
+            }
+        }
+
+        private void OnDataReceived(object? sender, EventArgs e)
+        {
+            if (sender is not ISerialConnection port || !port.IsOpen)
+                return;
+
+            try
+            {
+                int bytesToRead = port.BytesToRead;
                 if (bytesToRead <= 0)
                     return;
 
                 var chunk = new byte[bytesToRead];
-                int read = _port.Read(chunk, 0, bytesToRead);
+                int read = port.Read(chunk, 0, bytesToRead);
                 if (read > 0)
                 {
                     if (read != chunk.Length)
@@ -151,18 +330,21 @@ namespace WaterFilterCBZ.Services
                         Array.Resize(ref chunk, read);
                     }
 
+                    _lastDataReceivedUtc = DateTime.UtcNow;
                     _byteQueue.Enqueue(chunk);
                 }
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Error reading from serial port");
+                ScheduleReconnect("read failure");
             }
         }
 
-        private void OnErrorReceived(object sender, SerialErrorReceivedEventArgs e)
+        private void OnErrorReceived(object? sender, SerialPortErrorEventArgs e)
         {
-            Log.Error("Serial port error: {Error}", e.EventType);
+            Log.Error("Serial port error: {Error}", e.Error);
+            ScheduleReconnect($"serial error {e.Error}");
         }
 
         private async Task ProcessIncomingDataAsync(CancellationToken ct)
@@ -189,6 +371,80 @@ namespace WaterFilterCBZ.Services
             catch (Exception ex)
             {
                 Log.Error(ex, "Error in serial port processing task");
+                ScheduleReconnect("processing failure");
+            }
+        }
+
+        private async Task MonitorHeartbeatAsync(CancellationToken ct)
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    await Task.Delay(HeartbeatInterval, ct);
+
+                    if (!IsConnected)
+                        continue;
+
+                    var idleTime = DateTime.UtcNow - _lastDataReceivedUtc;
+                    if (idleTime > HeartbeatTimeout)
+                    {
+                        Log.Warning(
+                            "Serial heartbeat timeout on {PortName}; no data received for {IdleSeconds:F1}s.",
+                            _portName,
+                            idleTime.TotalSeconds);
+                        ScheduleReconnect("heartbeat timeout");
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when disconnecting or reconnecting.
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error in serial heartbeat monitor");
+                ScheduleReconnect("heartbeat monitor failure");
+            }
+        }
+
+        private void ScheduleReconnect(string reason)
+        {
+            if (!AutoReconnectEnabled || _manualDisconnectRequested || _isDisposed)
+                return;
+
+            if (Interlocked.CompareExchange(ref _reconnectInProgress, 1, 0) != 0)
+                return;
+
+            _ = Task.Run(() => ReconnectAsync(reason));
+        }
+
+        private async Task ReconnectAsync(string reason)
+        {
+            try
+            {
+                Log.Warning("Scheduling serial reconnect for {PortName}: {Reason}", _portName, reason);
+                ClosePort(raiseStatusChanged: true);
+
+                while (!_manualDisconnectRequested && !_isDisposed)
+                {
+                    await Task.Delay(ReconnectDelay);
+
+                    if (_manualDisconnectRequested || _isDisposed)
+                        return;
+
+                    lock (_connectionLock)
+                    {
+                        if (IsConnected || TryOpenPort())
+                            return;
+                    }
+
+                    Log.Warning("Serial reconnect attempt failed for {PortName}; retrying.", _portName);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _reconnectInProgress, 0);
             }
         }
 
@@ -365,7 +621,7 @@ namespace WaterFilterCBZ.Services
             if (disposing)
             {
                 Disconnect();
-                _cancellationTokenSource?.Dispose();
+                _connectionCancellationTokenSource?.Dispose();
                 _port?.Dispose();
             }
 
