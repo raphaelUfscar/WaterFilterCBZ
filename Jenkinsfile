@@ -35,13 +35,10 @@ pipeline {
     post {
         always {
             // Parse test results
-            junit testResults: 'WaterFilterCBZ.Tests/TestResults/test-results.trx', allowEmptyResults: true
+            junit testResults: '**/*.trx', allowEmptyResults: true
             
-            // Publish code coverage using coverage plugin
-            recordCoverage(
-                tools: [[pattern: '**/TestResults/**/coverage.cobertura.xml']],
-                sourceCodeEncoding: 'UTF-8'
-            )
+            // Archive coverage reports
+            archiveArtifacts artifacts: '**/TestResults/**/coverage.cobertura.xml', fingerprint: true, allowEmptyArchive: true
             
             // Archive bin/Release folder
             archiveArtifacts artifacts: 'bin/Release/**/*', fingerprint: true
