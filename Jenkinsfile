@@ -35,7 +35,7 @@ pipeline {
     post {
         always {
             // Parse test results
-            junit testResults: '**/TestResults/test-results.trx', skipPublishingChecks: true
+            junit testResults: 'WaterFilterCBZ.Tests/TestResults/test-results.trx', allowEmptyResults: true
             
             // Publish code coverage using coverage plugin
             recordCoverage(
