@@ -34,13 +34,15 @@ pipeline {
     
     post {
         always {
-            // Archive test results
-            junit testResults: '**/test-results.trx', skipPublishingChecks: true
+            // Parse test results
+            junit testResults: '**/TestResults/test-results.trx', skipPublishingChecks: true
             
-            // Publish coverage report
-            publishCoverage adapters: [
-                coberturaAdapter('**/coverage.cobertura.xml')
-            ], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+            // Publish code coverage using coverage plugin
+            coverage(
+                adapters: [
+                    coberturaAdapter(path: '**/TestResults/**/coverage.cobertura.xml')
+                ]
+            )
             
             // Archive bin/Release folder
             archiveArtifacts artifacts: 'bin/Release/**/*', fingerprint: true
