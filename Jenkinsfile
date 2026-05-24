@@ -38,10 +38,9 @@ pipeline {
             junit testResults: '**/TestResults/test-results.trx', skipPublishingChecks: true
             
             // Publish code coverage using coverage plugin
-            coverage(
-                adapters: [
-                    coberturaAdapter(path: '**/TestResults/**/coverage.cobertura.xml')
-                ]
+            recordCoverage(
+                tools: [[pattern: '**/TestResults/**/coverage.cobertura.xml']],
+                sourceCodeEncoding: 'UTF-8'
             )
             
             // Archive bin/Release folder
