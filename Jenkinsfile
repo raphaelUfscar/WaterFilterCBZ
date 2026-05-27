@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'windows dotnet10' }
+    agent { label 'dotnet10' }
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
