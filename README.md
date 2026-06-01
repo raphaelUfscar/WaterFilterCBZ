@@ -6,6 +6,8 @@ WaterFilterCBZ is a WPF desktop dashboard for monitoring sensor readings from a 
 
 ```text
 WaterFilterCBZ/
+|-- Converters/
+|   `-- InvertBoolConverter.cs       # WPF boolean inversion converter
 |-- Models/
 |   `-- SensorSample.cs              # Sensor reading model and legacy CSV parser helper
 |-- Services/
@@ -13,6 +15,10 @@ WaterFilterCBZ/
 |   `-- SerialPortService.cs         # Serial connection, frame parsing, and lifecycle handling
 |-- Utils/
 |   `-- SerialPortHelper.cs          # COM port discovery helpers
+|-- tools/
+|   |-- sensor_simulator.py          # Python serial frame simulator
+|   |-- requirements-simulator.txt   # Python simulator dependency
+|   `-- test_sensor_simulator.py     # Python frame encoder tests
 |-- ViewModels/
 |   |-- RelayCommand.cs              # ICommand implementation
 |   |-- SensorViewModel.cs           # Dashboard state, charts, commands, and sensor statistics
@@ -78,6 +84,50 @@ SENSOR_ID(1 byte) | TIMESTAMP_MS(uint32) | UNIT_ID(1 byte) | VALUE(float32)
 
 `TIMESTAMP_MS` is treated as a microcontroller millisecond counter. The first received timestamp is anchored to the PC wall clock; later samples are offset from that first sample.
 
+### Python Serial Simulator
+
+The repository includes a Python simulator for validating the full serial integration path without a physical sensor board. It writes the same binary frames described above to one side of a serial connection, so WaterFilterCBZ can connect to the other side exactly as it would connect to firmware.
+
+Install the simulator dependency:
+
+```powershell
+python -m pip install -r tools/requirements-simulator.txt
+```
+
+Confirm which serial ports Python can see:
+
+```powershell
+python tools/sensor_simulator.py --list-ports
+```
+
+For PC-only testing on Windows, create a virtual null-modem pair such as:
+
+```text
+COM10 <-> COM11
+```
+
+Run the simulator on one side of the pair:
+
+```powershell
+python tools/sensor_simulator.py --port COM10
+```
+
+Then start WaterFilterCBZ, select `COM11`, and connect. The default simulator run emits four sensors at `10 Hz` using mixed sine, ramp, step, and noise signals.
+
+If the simulator prints `could not open`, confirm that the requested port appears in `--list-ports`. If it does not appear, the virtual COM pair has not been created with that name. If it does appear, close any other program using that side of the pair and run the simulator on one port while WaterFilterCBZ uses the paired port.
+
+Useful simulator options:
+
+```powershell
+python tools/sensor_simulator.py --port COM10 --sensors 2 --rate-hz 20 --profile sine
+python tools/sensor_simulator.py --port COM10 --duration-seconds 30
+python tools/sensor_simulator.py --port COM10 --inject-errors checksum
+python tools/sensor_simulator.py --port COM10 --inject-errors end-byte
+python tools/sensor_simulator.py --port COM10 --inject-errors noise
+```
+
+Supported profiles are `sine`, `ramp`, `step`, `noise`, and `mixed`. Supported error injection modes are `none`, `checksum`, `end-byte`, `count`, `partial`, and `noise`. Error injection periodically sends malformed traffic and then resumes valid frames, which is useful for confirming parser resynchronization and warning logs.
+
 ## Application Behavior
 
 ### Connection Flow
@@ -141,6 +191,20 @@ Run tests:
 dotnet test WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj --no-restore
 ```
 
+Run simulator frame encoding tests:
+
+```powershell
+python -m unittest discover -s tools -p "test_*.py"
+```
+
+Run simulator tests with Python coverage:
+
+```powershell
+python -m pip install -r tools/requirements-simulator.txt
+python -m coverage run --source=tools --omit="tools/test_*.py" -m unittest discover -s tools -p "test_*.py"
+python -m coverage xml -o tools/coverage.xml
+```
+
 Generate OpenCover coverage locally:
 
 ```powershell
@@ -158,9 +222,9 @@ WaterFilterCBZ.Tests/TestResults/<run-id>/coverage.opencover.xml
 The repository includes:
 
 - `.github/workflows/dotnet-desktop.yml` for restore, build, test, publish, and artifact upload.
-- `.github/workflows/sonarqube.yml` for SonarQube analysis with OpenCover coverage import.
+- `.github/workflows/sonarqube.yml` for SonarQube analysis with C# OpenCover and Python Coverage.py imports.
 
-The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that a `coverage.opencover.xml` file was generated before ending analysis.
+The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that both `coverage.opencover.xml` and `tools/coverage.xml` were generated before ending analysis.
 
 ## Troubleshooting
 
@@ -186,7 +250,9 @@ The SonarQube workflow passes `SONAR_TOKEN` through environment variables and ve
 
 - Confirm the workflow generated `coverage.opencover.xml`.
 - Confirm `sonar.cs.opencover.reportsPaths` points to `**/TestResults/**/coverage.opencover.xml`.
-- Check the `Verify coverage report` workflow step output.
+- Confirm the workflow generated `tools/coverage.xml` for the Python simulator.
+- Confirm `sonar.python.coverage.reportPaths` points to `tools/coverage.xml`.
+- Check the `Verify coverage reports` workflow step output.
 
 ## Current Status
 
