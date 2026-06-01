@@ -197,6 +197,14 @@ Run simulator frame encoding tests:
 python -m unittest discover -s tools -p "test_*.py"
 ```
 
+Run simulator tests with Python coverage:
+
+```powershell
+python -m pip install -r tools/requirements-simulator.txt
+python -m coverage run --source=tools --omit="tools/test_*.py" -m unittest discover -s tools -p "test_*.py"
+python -m coverage xml -o tools/coverage.xml
+```
+
 Generate OpenCover coverage locally:
 
 ```powershell
@@ -214,9 +222,9 @@ WaterFilterCBZ.Tests/TestResults/<run-id>/coverage.opencover.xml
 The repository includes:
 
 - `.github/workflows/dotnet-desktop.yml` for restore, build, test, publish, and artifact upload.
-- `.github/workflows/sonarqube.yml` for SonarQube analysis with OpenCover coverage import.
+- `.github/workflows/sonarqube.yml` for SonarQube analysis with C# OpenCover and Python Coverage.py imports.
 
-The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that a `coverage.opencover.xml` file was generated before ending analysis.
+The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that both `coverage.opencover.xml` and `tools/coverage.xml` were generated before ending analysis.
 
 ## Troubleshooting
 
@@ -242,7 +250,9 @@ The SonarQube workflow passes `SONAR_TOKEN` through environment variables and ve
 
 - Confirm the workflow generated `coverage.opencover.xml`.
 - Confirm `sonar.cs.opencover.reportsPaths` points to `**/TestResults/**/coverage.opencover.xml`.
-- Check the `Verify coverage report` workflow step output.
+- Confirm the workflow generated `tools/coverage.xml` for the Python simulator.
+- Confirm `sonar.python.coverage.reportPaths` points to `tools/coverage.xml`.
+- Check the `Verify coverage reports` workflow step output.
 
 ## Current Status
 

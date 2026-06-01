@@ -45,6 +45,9 @@ ScaffoldingReadMe.txt
 CodeCoverage/
 __pycache__/
 *.py[cod]
+.coverage
+coverage.xml
+tools/coverage.xml
 
 # MSBuild Binary and Structured Log
 *.binlog
