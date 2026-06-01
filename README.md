@@ -6,6 +6,8 @@ WaterFilterCBZ is a WPF desktop dashboard for monitoring sensor readings from a 
 
 ```text
 WaterFilterCBZ/
+|-- Converters/
+|   `-- InvertBoolConverter.cs       # WPF boolean inversion converter
 |-- Models/
 |   `-- SensorSample.cs              # Sensor reading model and legacy CSV parser helper
 |-- Services/
