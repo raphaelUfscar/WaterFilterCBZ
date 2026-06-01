@@ -13,6 +13,10 @@ WaterFilterCBZ/
 |   `-- SerialPortService.cs         # Serial connection, frame parsing, and lifecycle handling
 |-- Utils/
 |   `-- SerialPortHelper.cs          # COM port discovery helpers
+|-- tools/
+|   |-- sensor_simulator.py          # Python serial frame simulator
+|   |-- requirements-simulator.txt   # Python simulator dependency
+|   `-- test_sensor_simulator.py     # Python frame encoder tests
 |-- ViewModels/
 |   |-- RelayCommand.cs              # ICommand implementation
 |   |-- SensorViewModel.cs           # Dashboard state, charts, commands, and sensor statistics
@@ -78,6 +82,42 @@ SENSOR_ID(1 byte) | TIMESTAMP_MS(uint32) | UNIT_ID(1 byte) | VALUE(float32)
 
 `TIMESTAMP_MS` is treated as a microcontroller millisecond counter. The first received timestamp is anchored to the PC wall clock; later samples are offset from that first sample.
 
+### Python Serial Simulator
+
+The repository includes a Python simulator for validating the full serial integration path without a physical sensor board. It writes the same binary frames described above to one side of a serial connection, so WaterFilterCBZ can connect to the other side exactly as it would connect to firmware.
+
+Install the simulator dependency:
+
+```powershell
+python -m pip install -r tools/requirements-simulator.txt
+```
+
+For PC-only testing on Windows, create a virtual null-modem pair such as:
+
+```text
+COM10 <-> COM11
+```
+
+Run the simulator on one side of the pair:
+
+```powershell
+python tools/sensor_simulator.py --port COM10
+```
+
+Then start WaterFilterCBZ, select `COM11`, and connect. The default simulator run emits four sensors at `10 Hz` using mixed sine, ramp, step, and noise signals.
+
+Useful simulator options:
+
+```powershell
+python tools/sensor_simulator.py --port COM10 --sensors 2 --rate-hz 20 --profile sine
+python tools/sensor_simulator.py --port COM10 --duration-seconds 30
+python tools/sensor_simulator.py --port COM10 --inject-errors checksum
+python tools/sensor_simulator.py --port COM10 --inject-errors end-byte
+python tools/sensor_simulator.py --port COM10 --inject-errors noise
+```
+
+Supported profiles are `sine`, `ramp`, `step`, `noise`, and `mixed`. Supported error injection modes are `none`, `checksum`, `end-byte`, `count`, `partial`, and `noise`. Error injection periodically sends malformed traffic and then resumes valid frames, which is useful for confirming parser resynchronization and warning logs.
+
 ## Application Behavior
 
 ### Connection Flow
@@ -139,6 +179,12 @@ Run tests:
 
 ```powershell
 dotnet test WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj --no-restore
+```
+
+Run simulator frame encoding tests:
+
+```powershell
+python -m unittest discover -s tools -p "test_*.py"
 ```
 
 Generate OpenCover coverage locally:
