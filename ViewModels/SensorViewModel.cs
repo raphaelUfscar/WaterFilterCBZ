@@ -4,6 +4,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using WaterFilterCBZ.Models;
+using WaterFilterCBZ.Services;
 using WaterFilterCBZ.Utils;
 using Serilog;
 
@@ -48,6 +49,7 @@ namespace WaterFilterCBZ.ViewModels
         }
 
         public ICommand ClearDataCommand { get; }
+        public ICommand OpenLogsCommand { get; }
         public ICommand ConnectCommand { get; }
         public ICommand DisconnectCommand { get; }
 
@@ -77,6 +79,7 @@ namespace WaterFilterCBZ.ViewModels
         public SensorViewModel()
         {
             ClearDataCommand = new RelayCommand(ClearAllData);
+            OpenLogsCommand = new RelayCommand(OpenLogs);
             ConnectCommand = new RelayCommand(OnConnect, CanConnect);
             DisconnectCommand = new RelayCommand(OnDisconnect, CanDisconnect);
             InitializeCharts();
@@ -300,6 +303,20 @@ namespace WaterFilterCBZ.ViewModels
 
             Log.Information("All sensor data cleared");
             StatusMessage = "Data cleared";
+        }
+
+        private void OpenLogs()
+        {
+            try
+            {
+                LoggingService.OpenLogDirectory();
+                StatusMessage = $"Opened logs: {LoggingService.LogDirectory}";
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to open log folder {LogDirectory}", LoggingService.LogDirectory);
+                StatusMessage = $"Log folder: {LoggingService.LogDirectory}";
+            }
         }
 
         public void UpdateConnectionStatus(bool isConnected, string? comPort = null)

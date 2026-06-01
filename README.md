@@ -147,7 +147,7 @@ The default selected port is `COM4`, but the UI will select an available port if
 - Each chart keeps the latest 300 points.
 - Chart updates are throttled per sensor to reduce UI load.
 - The right panel shows active sensors with current value, min, max, average, reading count, and last update time.
-- The bottom bar provides Clear Data, COM port selection, Connect, and Disconnect controls.
+- The bottom bar provides Clear Data, Open Logs, COM port selection, Connect, and Disconnect controls.
 
 ## Logging
 
@@ -156,6 +156,14 @@ Logs are written to:
 ```text
 %AppData%\WaterFilterCBZ\logs\
 ```
+
+On Windows, `%AppData%` usually expands to:
+
+```text
+C:\Users\<your-user>\AppData\Roaming\WaterFilterCBZ\logs\
+```
+
+Use the app's `Open Logs` button to open this folder directly.
 
 Logging outputs:
 
