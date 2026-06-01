@@ -1,3 +1,5 @@
+import contextlib
+import io
 import struct
 import unittest
 
@@ -100,6 +102,21 @@ class SensorSimulatorFrameTests(unittest.TestCase):
         self.assertGreater(len(noisy), len(frame))
         self.assertTrue(noisy.endswith(frame))
         self.assertNotEqual(simulator.START_BYTE, noisy[0])
+
+    def test_parse_args_requires_port_unless_listing_ports(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                simulator.parse_args([])
+
+        args = simulator.parse_args(["--list-ports"])
+
+        self.assertTrue(args.list_ports)
+        self.assertIsNone(args.port)
+
+    def test_natural_port_key_sorts_numbered_ports_numerically(self):
+        ports = ["COM2", "COM10", "COM1"]
+
+        self.assertEqual(["COM1", "COM2", "COM10"], sorted(ports, key=simulator.natural_port_key))
 
 
 if __name__ == "__main__":

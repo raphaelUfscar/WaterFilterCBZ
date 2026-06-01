@@ -92,6 +92,12 @@ Install the simulator dependency:
 python -m pip install -r tools/requirements-simulator.txt
 ```
 
+Confirm which serial ports Python can see:
+
+```powershell
+python tools/sensor_simulator.py --list-ports
+```
+
 For PC-only testing on Windows, create a virtual null-modem pair such as:
 
 ```text
@@ -105,6 +111,8 @@ python tools/sensor_simulator.py --port COM10
 ```
 
 Then start WaterFilterCBZ, select `COM11`, and connect. The default simulator run emits four sensors at `10 Hz` using mixed sine, ramp, step, and noise signals.
+
+If the simulator prints `could not open`, confirm that the requested port appears in `--list-ports`. If it does not appear, the virtual COM pair has not been created with that name. If it does appear, close any other program using that side of the pair and run the simulator on one port while WaterFilterCBZ uses the paired port.
 
 Useful simulator options:
 

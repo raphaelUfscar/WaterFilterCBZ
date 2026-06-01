@@ -130,7 +130,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Emit WaterFilterCBZ binary sensor frames to a serial port."
     )
-    parser.add_argument("--port", required=True, help="Serial port to write, for example COM10.")
+    parser.add_argument("--port", help="Serial port to write, for example COM10.")
+    parser.add_argument(
+        "--list-ports",
+        action="store_true",
+        help="List serial ports visible to pyserial and exit.",
+    )
     parser.add_argument("--baud", type=int, default=DEFAULT_BAUD, help="Serial baud rate.")
     parser.add_argument(
         "--sensors",
@@ -166,6 +171,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
 
     args = parser.parse_args(argv)
+    if not args.list_ports and not args.port:
+        parser.error("--port is required unless --list-ports is used")
     if args.rate_hz < 1.0 or args.rate_hz > 100.0:
         parser.error("--rate-hz must be between 1 and 100")
     if args.duration_seconds is not None and args.duration_seconds <= 0:
@@ -176,6 +183,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def run(args: argparse.Namespace) -> int:
     try:
         import serial
+        from serial.tools import list_ports
     except ImportError:
         print(
             "pyserial is required to open serial ports. "
@@ -183,6 +191,16 @@ def run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+
+    if args.list_ports:
+        ports = list_available_ports(list_ports)
+        if ports:
+            print("Serial ports visible to pyserial:")
+            for port in ports:
+                print(f"  {port.device}: {port.description}")
+        else:
+            print("No serial ports were found.")
+        return 0
 
     interval_seconds = 1.0 / args.rate_hz
     timestamp_step_ms = max(1, round(interval_seconds * 1000))
@@ -245,10 +263,52 @@ def run(args: argparse.Namespace) -> int:
         return 0
     except Exception as exc:
         print(f"Serial simulator failed: {exc}", file=sys.stderr)
+        print_port_failure_hints(args.port, list_available_ports(list_ports), file=sys.stderr)
         return 1
 
     print("Finished.")
     return 0
+
+
+def list_available_ports(list_ports_module) -> list:
+    return sorted(list_ports_module.comports(), key=lambda port: natural_port_key(port.device))
+
+
+def natural_port_key(port_name: str) -> tuple[str, int | str]:
+    prefix = port_name.rstrip("0123456789")
+    suffix = port_name[len(prefix) :]
+    return (prefix.upper(), int(suffix) if suffix else port_name.upper())
+
+
+def print_port_failure_hints(port_name: str, ports: list, file) -> None:
+    visible_port_names = {port.device.upper() for port in ports}
+    print("", file=file)
+    if ports:
+        print("Ports visible to pyserial:", file=file)
+        for port in ports:
+            print(f"  {port.device}: {port.description}", file=file)
+    else:
+        print("pyserial did not find any serial ports.", file=file)
+
+    print("", file=file)
+    if port_name.upper() not in visible_port_names:
+        print(
+            f"{port_name} is not currently visible. Create or confirm the virtual COM pair, "
+            "then use one of the listed port names.",
+            file=file,
+        )
+    else:
+        print(
+            f"{port_name} is visible but could not be opened. Close any other program using "
+            "that side of the pair, including another simulator instance, serial monitor, or terminal.",
+            file=file,
+        )
+    print(
+        "For a virtual pair such as COM10 <-> COM11, run the simulator on one side "
+        "and connect WaterFilterCBZ to the other side.",
+        file=file,
+    )
+    print("You can also run: python tools/sensor_simulator.py --list-ports", file=file)
 
 
 def validate_uint8(value: int, name: str) -> None:
