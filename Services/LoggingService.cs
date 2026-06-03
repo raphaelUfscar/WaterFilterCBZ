@@ -1,5 +1,6 @@
 using Serilog;
 using Serilog.Events;
+using System.Diagnostics;
 using System.IO;
 
 namespace WaterFilterCBZ.Services
@@ -9,12 +10,14 @@ namespace WaterFilterCBZ.Services
     /// </summary>
     public static class LoggingService
     {
+        public static string LogDirectory => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "WaterFilterCBZ",
+            "logs");
+
         public static void ConfigureLogging()
         {
-            var logPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "WaterFilterCBZ",
-                "logs");
+            var logPath = LogDirectory;
 
             Directory.CreateDirectory(logPath);
 
@@ -29,6 +32,17 @@ namespace WaterFilterCBZ.Services
                 .CreateLogger();
 
             Log.Information("Logging initialized. Log files: {LogPath}", logPath);
+        }
+
+        public static void OpenLogDirectory()
+        {
+            Directory.CreateDirectory(LogDirectory);
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = LogDirectory,
+                UseShellExecute = true
+            });
         }
 
         public static void CloseAndFlush()

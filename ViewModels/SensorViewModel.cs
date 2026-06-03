@@ -4,6 +4,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using WaterFilterCBZ.Models;
+using WaterFilterCBZ.Services;
 using WaterFilterCBZ.Utils;
 using Serilog;
 
@@ -15,6 +16,7 @@ namespace WaterFilterCBZ.ViewModels
     /// </summary>
     public class SensorViewModel : ViewModelBase
     {
+        private readonly Action _openLogDirectory;
         private readonly Dictionary<string, SensorDisplayInfo> _sensorMap = new();
         private readonly Dictionary<string, int> _sensorPlotIndex = new();
         private readonly PlotModel[] _plots = new PlotModel[4];
@@ -48,6 +50,7 @@ namespace WaterFilterCBZ.ViewModels
         }
 
         public ICommand ClearDataCommand { get; }
+        public ICommand OpenLogsCommand { get; }
         public ICommand ConnectCommand { get; }
         public ICommand DisconnectCommand { get; }
 
@@ -74,9 +77,11 @@ namespace WaterFilterCBZ.ViewModels
             set => SetProperty(ref _sampleCount, value);
         }
 
-        public SensorViewModel()
+        public SensorViewModel(Action? openLogDirectory = null)
         {
+            _openLogDirectory = openLogDirectory ?? LoggingService.OpenLogDirectory;
             ClearDataCommand = new RelayCommand(ClearAllData);
+            OpenLogsCommand = new RelayCommand(OpenLogs);
             ConnectCommand = new RelayCommand(OnConnect, CanConnect);
             DisconnectCommand = new RelayCommand(OnDisconnect, CanDisconnect);
             InitializeCharts();
@@ -300,6 +305,20 @@ namespace WaterFilterCBZ.ViewModels
 
             Log.Information("All sensor data cleared");
             StatusMessage = "Data cleared";
+        }
+
+        private void OpenLogs()
+        {
+            try
+            {
+                _openLogDirectory();
+                StatusMessage = $"Opened logs: {LoggingService.LogDirectory}";
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to open log folder {LogDirectory}", LoggingService.LogDirectory);
+                StatusMessage = $"Log folder: {LoggingService.LogDirectory}";
+            }
         }
 
         public void UpdateConnectionStatus(bool isConnected, string? comPort = null)

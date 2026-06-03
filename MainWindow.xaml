@@ -40,6 +40,16 @@
                         FontWeight="Bold"
                         Cursor="Hand"
                         Margin="0,0,10,0"/>
+
+                <Button Command="{Binding OpenLogsCommand}"
+                        Content="Open Logs"
+                        Padding="15,8"
+                        Background="#3498DB"
+                        Foreground="White"
+                        FontSize="12"
+                        FontWeight="Bold"
+                        Cursor="Hand"
+                        Margin="0,0,10,0"/>
                 
                 <!-- Separator -->
                 <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="0,0,10,0"/>
