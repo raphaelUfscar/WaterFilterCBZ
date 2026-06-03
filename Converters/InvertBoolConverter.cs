@@ -5,7 +5,6 @@ namespace WaterFilterCBZ
 {
     /// <summary>
     /// Converter that inverts a boolean value.
-    /// Used to disable ComboBox when connected.
     /// </summary>
     public class InvertBoolConverter : IValueConverter
     {

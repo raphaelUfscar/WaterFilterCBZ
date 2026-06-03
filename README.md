@@ -9,7 +9,7 @@ WaterFilterCBZ/
 |-- Converters/
 |   `-- InvertBoolConverter.cs       # WPF boolean inversion converter
 |-- Models/
-|   `-- SensorSample.cs              # Sensor reading model and legacy CSV parser helper
+|   `-- SensorSample.cs              # Sensor reading model
 |-- Services/
 |   |-- LoggingService.cs            # Serilog configuration
 |   `-- SerialPortService.cs         # Serial connection, frame parsing, and lifecycle handling
@@ -26,8 +26,9 @@ WaterFilterCBZ/
 |-- WaterFilterCBZ.Tests/
 |   |-- RelayCommandTests.cs
 |   |-- SensorDisplayInfoTests.cs
-|   |-- SensorSampleTests.cs
 |   `-- SerialPortServiceTests.cs
+|-- WaterFilterCBZ.UITests/          # FlaUI end-to-end UI tests (local/dedicated agent)
+|   `-- ConnectionWorkflowTests.cs   # Full connect/stream/clear/disconnect via UI Automation
 |-- App.xaml / App.xaml.cs           # Application startup and shutdown
 |-- MainWindow.xaml / MainWindow.xaml.cs
 |-- WaterFilterCBZ.csproj
@@ -197,6 +198,12 @@ Run tests:
 
 ```powershell
 dotnet test WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj --no-restore
+```
+
+Run the end-to-end UI tests (local / dedicated agent only; requires a virtual COM pair and Python — see `WaterFilterCBZ.UITests/README.md`):
+
+```powershell
+dotnet test WaterFilterCBZ.UITests/WaterFilterCBZ.UITests.csproj
 ```
 
 Run simulator frame encoding tests:

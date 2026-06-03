@@ -20,10 +20,10 @@
         <Border DockPanel.Dock="Top" Background="#2C3E50" Padding="10" Height="50">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Status:" Foreground="White" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
-                <TextBlock Text="{Binding ConnectionStatus}" Foreground="#27AE60" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Margin="0,0,20,0"/>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="White" VerticalAlignment="Center" FontSize="12" Margin="0,0,30,0"/>
+                <TextBlock AutomationProperties.AutomationId="ConnectionStatusText" Text="{Binding ConnectionStatus}" Foreground="#27AE60" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Margin="0,0,20,0"/>
+                <TextBlock AutomationProperties.AutomationId="StatusMessageText" Text="{Binding StatusMessage}" Foreground="White" VerticalAlignment="Center" FontSize="12" Margin="0,0,30,0"/>
                 <TextBlock Text="Samples:" Foreground="White" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0"/>
-                <TextBlock Text="{Binding SampleCount}" Foreground="#3498DB" VerticalAlignment="Center" FontSize="14"/>
+                <TextBlock AutomationProperties.AutomationId="SampleCountText" Text="{Binding SampleCount}" Foreground="#3498DB" VerticalAlignment="Center" FontSize="14"/>
             </StackPanel>
         </Border>
 
@@ -31,8 +31,9 @@
         <Border DockPanel.Dock="Bottom" Background="#ECF0F1" Padding="10" Height="60">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- Clear Data Button -->
-                <Button Command="{Binding ClearDataCommand}" 
-                        Content="Clear Data" 
+                <Button AutomationProperties.AutomationId="ClearDataButton"
+                        Command="{Binding ClearDataCommand}"
+                        Content="Clear Data"
                         Padding="15,8" 
                         Background="#E74C3C" 
                         Foreground="White"
@@ -41,7 +42,8 @@
                         Cursor="Hand"
                         Margin="0,0,10,0"/>
 
-                <Button Command="{Binding OpenLogsCommand}"
+                <Button AutomationProperties.AutomationId="OpenLogsButton"
+                        Command="{Binding OpenLogsCommand}"
                         Content="Open Logs"
                         Padding="15,8"
                         Background="#3498DB"
@@ -61,17 +63,19 @@
                           FontWeight="Bold"
                           Margin="0,0,5,0"/>
                 
-                <ComboBox ItemsSource="{Binding AvailablePorts}" 
-                         SelectedItem="{Binding SelectedPort}" 
-                         Width="100" 
+                <ComboBox AutomationProperties.AutomationId="PortSelector"
+                         ItemsSource="{Binding AvailablePorts}"
+                         SelectedItem="{Binding SelectedPort}"
+                         Width="100"
                          Padding="8,5"
                          VerticalAlignment="Center"
                          IsEnabled="{Binding IsConnected, Converter={StaticResource InvertBoolConverter}}"
                          Margin="0,0,10,0"/>
                 
                 <!-- Connect Button -->
-                <Button Command="{Binding ConnectCommand}" 
-                       Content="Connect" 
+                <Button AutomationProperties.AutomationId="ConnectButton"
+                       Command="{Binding ConnectCommand}"
+                       Content="Connect"
                        Padding="15,8" 
                        Background="#27AE60" 
                        Foreground="White"
@@ -81,8 +85,9 @@
                        Margin="0,0,10,0"/>
                 
                 <!-- Disconnect Button -->
-                <Button Command="{Binding DisconnectCommand}" 
-                       Content="Disconnect" 
+                <Button AutomationProperties.AutomationId="DisconnectButton"
+                       Command="{Binding DisconnectCommand}"
+                       Content="Disconnect"
                        Padding="15,8" 
                        Background="#E67E22" 
                        Foreground="White"
@@ -143,7 +148,7 @@
                           FontWeight="Bold"/>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Sensors}">
+                    <ItemsControl AutomationProperties.AutomationId="SensorList" ItemsSource="{Binding Sensors}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border BorderBrush="#BDC3C7" BorderThickness="0,0,0,1" Padding="10,8">
