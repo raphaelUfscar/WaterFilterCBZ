@@ -343,7 +343,7 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | SRS-007 | The software shall display current sensor value and summary statistics. | AE-VM-001, AE-MODEL-001, AE-UI-001 | `SensorViewModel.AddSample()`, `SensorDisplayInfo.AddValue()` | Existing `SensorDisplayInfo` tests; end-to-end UI test asserts sensors register and values display (AE-TEST-002). |
 | SRS-008 | The software shall plot sensor values over time for up to four sensors. | AE-VM-001, AE-UI-001 | `UpdateChartForSensor()`, OxyPlot `PlotModel` bindings | Unit/integration test to be added; manual chart verification. |
 | SRS-009 | The software shall allow the user to clear displayed sensor data. | AE-VM-001, AE-UI-001 | `ClearDataCommand`, `ClearAllData()` | End-to-end UI test asserts the clear-data step (AE-TEST-002); dedicated unit test still recommended. |
-| SRS-010 | The software shall log startup, shutdown, connection, parsing, and processing events. | AE-APP-001, AE-LOG-001, AE-ACQ-001, AE-VM-001 | `LoggingService`, Serilog calls | Log file verification test/procedure to be added. |
+| SRS-010 | The software shall log startup, shutdown, connection, parsing, and processing events. | AE-APP-001, AE-LOG-001, AE-ACQ-001, AE-VM-001 | `LoggingService`, Serilog calls | End-to-end UI test asserts each command (connect, open logs, clear, disconnect) is written to the rolling log file (AE-TEST-002); broader event coverage still to be added. |
 | SRS-011 | The software shall disconnect and release serial resources on user request or application close. | AE-UI-001, AE-ACQ-001 | `OnDisconnectRequested()`, `OnClosed()`, `Disconnect()`, `Dispose()` | Existing dispose/disconnect tests; end-to-end UI test exercises user-initiated disconnect (AE-TEST-002). |
 
 ### 4.4 Risk-Control Traceability
@@ -356,7 +356,7 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | HAZ-004 | Application hangs or becomes unresponsive under high-rate input. | RC-004 | Use asynchronous acquisition and throttle chart updates. | SRS-003, SRS-008 | AE-ACQ-001, AE-VM-001 | Performance/stress test required. |
 | HAZ-005 | Malformed serial stream causes memory growth or parser lockup. | RC-005 | Resynchronize parser and time out partial frames; add explicit buffer cap. | SRS-004, SRS-C-003 proposed | AE-PROTO-001 | Partial coverage; malformed-stream stress tests required. |
 | HAZ-006 | User connects to unavailable or incorrect COM port. | RC-006 | Enumerate available ports and show connection status. | SRS-001, SRS-002 | AE-UTIL-001, AE-VM-001, AE-UI-001 | Automated end-to-end UI test covers port selection and connect/disconnect status (AE-TEST-002); failure-path UI tests (unavailable/busy port) still recommended. |
-| HAZ-007 | Failure cannot be reconstructed after incident. | RC-007 | Record relevant operational events in rolling logs. | SRS-010 | AE-LOG-001 | Log verification procedure required. |
+| HAZ-007 | Failure cannot be reconstructed after incident. | RC-007 | Record relevant operational events in rolling logs. | SRS-010 | AE-LOG-001 | End-to-end UI test verifies command events reach the rolling log file (AE-TEST-002); full event-coverage procedure still required. |
 
 ### 4.5 Detailed Design Traceability
 
@@ -379,7 +379,7 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | `SensorDisplayInfoTests` | Sensor statistics and property-change notification. |
 | `RelayCommandTests` | Command execution and command enablement behavior. |
 | `LoggingServiceTests`, `SensorViewModelOpenLogsTests` | Log directory/configuration and the Open Logs command. |
-| `ConnectionWorkflowTests` (`WaterFilterCBZ.UITests`) | End-to-end UI workflow over a virtual COM pair with the Python simulator: port selection, connect, live-data display, clear data, disconnect. Local/dedicated-agent only; self-skips without the COM pair/Python. |
+| `ConnectionWorkflowTests` (`WaterFilterCBZ.UITests`) | End-to-end UI workflow over a virtual COM pair with the Python simulator: port selection, connect, live-data display, open logs, clear data, disconnect. Also asserts each command is written to the rolling log file. Local/dedicated-agent only; self-skips without the COM pair/Python. |
 | Proposed integration tests | Headless `SerialPortService` ↔ `SensorViewModel` wiring (CI-friendly), parser malformed-frame behavior, stale-data state, logging behavior. Chart-update and COM-port lifecycle are partially covered by `ConnectionWorkflowTests`. |
 | Proposed system tests | Hardware-in-the-loop verification with representative firmware and operator-visible failure states. Simulator-based end-to-end over a virtual COM pair is now automated by `ConnectionWorkflowTests`; sustained-input, disconnect/reconnect, and malformed-stream injection coverage still to be added. |
 

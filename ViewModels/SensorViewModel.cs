@@ -312,6 +312,7 @@ namespace WaterFilterCBZ.ViewModels
             try
             {
                 _openLogDirectory();
+                Log.Information("Opened log directory {LogDirectory}", LoggingService.LogDirectory);
                 StatusMessage = $"Opened logs: {LoggingService.LogDirectory}";
             }
             catch (Exception ex)

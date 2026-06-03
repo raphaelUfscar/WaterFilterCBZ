@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
@@ -11,8 +12,11 @@ namespace WaterFilterCBZ.UITests;
 
 /// <summary>
 /// End-to-end UI Automation test that drives the real WPF window through the full
-/// connection workflow — select port, connect, observe live data, clear, disconnect —
-/// with the bundled Python simulator feeding frames over a virtual COM pair.
+/// connection workflow — select port, connect, observe live data, open logs, clear,
+/// disconnect — with the bundled Python simulator feeding frames over a virtual COM pair.
+///
+/// In addition to UI state, each command is verified to reach the rolling log file under
+/// %AppData%\WaterFilterCBZ\logs (evidence for the logging/auditability requirements).
 ///
 /// Requires an interactive desktop session and the environment described in
 /// WaterFilterCBZ.UITests/README.md. Self-skips when that environment is absent.
@@ -58,6 +62,7 @@ public sealed class ConnectionWorkflowTests : IDisposable
         PortSelector.Select(TestEnvironment.AppPort);
 
         // Act + Assert: connect and confirm the status flips and frames start arriving.
+        var connectLogOffset = LogFileLength();
         ClickWhenEnabled(ConnectButton, "Connect");
         Assert.True(
             WaitUntil(() => ConnectionStatus.Contains("Connected", StringComparison.OrdinalIgnoreCase), ShortWait),
@@ -70,17 +75,32 @@ public sealed class ConnectionWorkflowTests : IDisposable
         // The simulator emits 4 sensors; at least one must register in the Active Sensors panel.
         Assert.True(WaitUntil(() => SensorCount >= 1, DataWait), "No sensors registered in the dashboard.");
 
-        // Clear Data resets the running totals.
+        // The connection must be recorded in the log file.
+        AssertLoggedAfter("Connect", connectLogOffset, "Connection status: Connected");
+
+        // Open Logs: writes an audit entry (and opens the folder in the OS file browser).
+        var openLogsOffset = LogFileLength();
+        ClickWhenEnabled(OpenLogsButton, "Open Logs");
+        Assert.True(
+            WaitUntil(() => StatusMessage.Contains("Opened logs", StringComparison.OrdinalIgnoreCase), ShortWait),
+            $"Expected an 'Opened logs' status but it was '{StatusMessage}'.");
+        AssertLoggedAfter("Open Logs", openLogsOffset, "Opened log directory");
+
+        // Clear Data resets the running totals and is recorded in the log.
+        var clearLogOffset = LogFileLength();
         ClickWhenEnabled(ClearDataButton, "Clear Data");
         Assert.True(
             WaitUntil(() => StatusMessage.Contains("cleared", StringComparison.OrdinalIgnoreCase), ShortWait),
             $"Expected a 'Data cleared' status but it was '{StatusMessage}'.");
+        AssertLoggedAfter("Clear Data", clearLogOffset, "All sensor data cleared");
 
-        // Disconnect returns to the idle state.
+        // Disconnect returns to the idle state and is recorded in the log.
+        var disconnectLogOffset = LogFileLength();
         ClickWhenEnabled(DisconnectButton, "Disconnect");
         Assert.True(
             WaitUntil(() => ConnectionStatus.Contains("Disconnected", StringComparison.OrdinalIgnoreCase), ShortWait),
             $"Expected 'Disconnected' after disconnect but status was '{ConnectionStatus}'.");
+        AssertLoggedAfter("Disconnect", disconnectLogOffset, "Connection status: Disconnected");
     }
 
     // --- Element accessors (located by AutomationId, so they are locale-independent) ---
@@ -88,6 +108,7 @@ public sealed class ConnectionWorkflowTests : IDisposable
     private Button ConnectButton => FindButton("ConnectButton");
     private Button DisconnectButton => FindButton("DisconnectButton");
     private Button ClearDataButton => FindButton("ClearDataButton");
+    private Button OpenLogsButton => FindButton("OpenLogsButton");
     private ComboBox PortSelector => Find("PortSelector").AsComboBox();
 
     private string ConnectionStatus => Find("ConnectionStatusText").Name ?? string.Empty;
@@ -146,6 +167,58 @@ public sealed class ConnectionWorkflowTests : IDisposable
         }
 
         throw new TimeoutException($"Button '{name}' did not become enabled within {timeout.TotalSeconds:N0}s.", last);
+    }
+
+    /// <summary>
+    /// Asserts that, after a command, a log entry containing <paramref name="expectedSubstring"/>
+    /// was appended to the rolling log file beyond <paramref name="beforeOffset"/>. Polls because
+    /// Serilog flushes asynchronously relative to the UI action.
+    /// </summary>
+    private void AssertLoggedAfter(string actionName, long beforeOffset, string expectedSubstring)
+    {
+        Assert.True(
+            WaitUntil(() => ReadLogTail(beforeOffset).Contains(expectedSubstring, StringComparison.OrdinalIgnoreCase), ShortWait),
+            $"Expected a log entry containing '{expectedSubstring}' after {actionName}, but it was not found.{Environment.NewLine}" +
+            $"New log content since the action:{Environment.NewLine}{ReadLogTail(beforeOffset)}");
+    }
+
+    /// <summary>Newest rolling log file (app-*.txt) in the app's log directory, or null if none yet.</summary>
+    private static string? CurrentLogFile()
+    {
+        if (!Directory.Exists(TestEnvironment.LogDirectory))
+            return null;
+
+        return new DirectoryInfo(TestEnvironment.LogDirectory)
+            .GetFiles("app-*.txt")
+            .OrderByDescending(f => f.LastWriteTimeUtc)
+            .FirstOrDefault()?.FullName;
+    }
+
+    private static long LogFileLength()
+    {
+        var file = CurrentLogFile();
+        if (file is null || !File.Exists(file))
+            return 0;
+
+        // Share ReadWrite so we coexist with Serilog's open write handle.
+        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return stream.Length;
+    }
+
+    /// <summary>Reads log content appended after <paramref name="fromOffset"/> (handles a midnight roll-over defensively).</summary>
+    private static string ReadLogTail(long fromOffset)
+    {
+        var file = CurrentLogFile();
+        if (file is null || !File.Exists(file))
+            return string.Empty;
+
+        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (fromOffset > stream.Length)
+            fromOffset = 0;
+
+        stream.Seek(fromOffset, SeekOrigin.Begin);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     private static bool WaitUntil(Func<bool> condition, TimeSpan timeout, int pollMs = 150)

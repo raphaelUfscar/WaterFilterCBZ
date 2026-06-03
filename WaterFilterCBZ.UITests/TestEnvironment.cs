@@ -23,6 +23,15 @@ internal static class TestEnvironment
     public static string Python =>
         Environment.GetEnvironmentVariable("WFCBZ_PYTHON") ?? "python";
 
+    /// <summary>
+    /// The app's rolling log directory (%AppData%\WaterFilterCBZ\logs), mirroring
+    /// <c>LoggingService.LogDirectory</c> in the application.
+    /// </summary>
+    public static string LogDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "WaterFilterCBZ",
+        "logs");
+
     public static bool PortExists(string port) =>
         SerialPort.GetPortNames().Any(p => string.Equals(p, port, StringComparison.OrdinalIgnoreCase));
 

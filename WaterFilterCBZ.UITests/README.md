@@ -1,13 +1,10 @@
 # WaterFilterCBZ.UITests
 
 End-to-end UI Automation tests that drive the real WPF window through the full
-connection workflow — **select port → connect → observe live data → clear → disconnect** —
+connection workflow — **select port → connect → observe live data → open logs → clear → disconnect** —
 using [FlaUI](https://github.com/FlaUI/FlaUI) (UIA3) and the bundled Python serial
-simulator feeding frames over a virtual COM pair.
-
-> For the concepts behind these tests — technologies, fundamentals, pros/cons, how to
-> reuse the approach elsewhere, and how it compares to professional UI testing — see
-> [../docs/e2e-ui-testing.md](../docs/e2e-ui-testing.md).
+simulator feeding frames over a virtual COM pair. It also verifies each command is
+recorded in the rolling log file.
 
 These tests are **local / dedicated-agent only**. They are deliberately excluded from the
 fast CI run (the GitHub workflow tests `WaterFilterCBZ.Tests.csproj` explicitly), because
@@ -55,8 +52,15 @@ the app will connect but receive no data and the test will fail at the "samples 
 
 - After **Connect**, `ConnectionStatus` shows `Connected` and `SampleCount` climbs above zero.
 - At least one sensor registers in the Active Sensors panel.
+- **Open Logs** produces an `Opened logs` status.
 - **Clear Data** produces a `Data cleared` status.
 - **Disconnect** returns `ConnectionStatus` to `Disconnected`.
+- Each command (connect, open logs, clear, disconnect) is written to the rolling log file
+  under `%AppData%\WaterFilterCBZ\logs` — verified by snapshotting the file length before the
+  action and asserting the new tail contains the expected entry.
+
+> Note: exercising **Open Logs** launches the OS file browser at the logs folder (that is what
+> the feature does); the test reads the log file directly rather than driving that window.
 
 Elements are located by `AutomationProperties.AutomationId` (`ConnectButton`,
 `DisconnectButton`, `ClearDataButton`, `PortSelector`, `ConnectionStatusText`,
