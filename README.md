@@ -9,7 +9,7 @@ WaterFilterCBZ/
 |-- Converters/
 |   `-- InvertBoolConverter.cs       # WPF boolean inversion converter
 |-- Models/
-|   `-- SensorSample.cs              # Sensor reading model and legacy CSV parser helper
+|   `-- SensorSample.cs              # Sensor reading model
 |-- Services/
 |   |-- LoggingService.cs            # Serilog configuration
 |   `-- SerialPortService.cs         # Serial connection, frame parsing, and lifecycle handling
@@ -26,7 +26,6 @@ WaterFilterCBZ/
 |-- WaterFilterCBZ.Tests/
 |   |-- RelayCommandTests.cs
 |   |-- SensorDisplayInfoTests.cs
-|   |-- SensorSampleTests.cs
 |   `-- SerialPortServiceTests.cs
 |-- App.xaml / App.xaml.cs           # Application startup and shutdown
 |-- MainWindow.xaml / MainWindow.xaml.cs
