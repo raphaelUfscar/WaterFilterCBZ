@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Software Architectural Design Document</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="software-architectural-design-document">Software Architectural Design Document</h1>
+<p>Project: WaterFilterCBZ<br>
+Standard context: IEC 62304 software architectural design<br>
+Document status: Draft<br>
+Last updated: 2026-05-12</p>
+<h2 id="document-purpose">Document Purpose</h2>
+<p>This document describes the software architecture of WaterFilterCBZ for IEC 62304 design control purposes. It identifies the high-level software decomposition, interfaces between software items, architectural safety segregation, and traceability links from hazards and risk controls to requirements, architecture, units, and verification.</p>
+<p>WaterFilterCBZ is a Windows WPF desktop application that monitors up to four sensor channels received from a microcontroller through USB serial communication. The current application is a monitoring and visualization system. If the software is used to make or support medical-device safety decisions, the safety classification, risk controls, verification depth, and segregation evidence must be completed according to the final intended use.</p>
+<h2 id="1-software-architecture">1. Software Architecture</h2>
+<h3 id="11-architectural-overview">1.1 Architectural Overview</h3>
+<p>WaterFilterCBZ uses a layered desktop architecture based on WPF and MVVM. The application separates presentation, dashboard state, serial communication, domain data, infrastructure utilities, and logging.</p>
+<pre><code class="language-text">WaterFilterCBZ Application
+|-- Presentation Layer
+|   |-- App lifecycle
+|   |-- MainWindow view
+|   `-- XAML bindings and chart host controls
+|-- ViewModel Layer
+|   |-- SensorViewModel
+|   |-- SensorDisplayInfo
+|   |-- RelayCommand
+|   `-- ViewModelBase
+|-- Service Layer
+|   |-- SerialPortService
+|   |-- ISerialPortService
+|   `-- LoggingService
+|-- Domain Model Layer
+|   `-- SensorSample
+|-- Utility Layer
+|   `-- SerialPortHelper
+|-- External Interfaces
+|   |-- USB serial / COM port
+|   |-- System.IO.Ports
+|   |-- WPF Dispatcher
+|   |-- OxyPlot.Wpf
+|   `-- Serilog file/debug sinks
+`-- Verification
+    `-- WaterFilterCBZ.Tests
+</code></pre>
+<h3 id="12-software-systems">1.2 Software Systems</h3>
+<table>
+<thead>
+<tr>
+<th>Software system</th>
+<th>Responsibility</th>
+<th>Primary implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WaterFilterCBZ desktop application</td>
+<td>Provides real-time sensor monitoring, connection control, chart display, sensor statistics, and operational logging.</td>
+<td><code>App.xaml</code>, <code>App.xaml.cs</code>, <code>MainWindow.xaml</code>, <code>MainWindow.xaml.cs</code></td>
+</tr>
+<tr>
+<td>Sensor data acquisition system</td>
+<td>Opens the selected COM port, receives byte chunks, assembles framed packets, validates frame structure and checksum, and emits sensor samples.</td>
+<td><code>Services/SerialPortService.cs</code></td>
+</tr>
+<tr>
+<td>Dashboard state and presentation model</td>
+<td>Maintains connection state, selected port, available ports, sensor statistics, charts, and commands.</td>
+<td><code>ViewModels/SensorViewModel.cs</code></td>
+</tr>
+<tr>
+<td>Verification system</td>
+<td>Provides automated unit tests for parser-relevant behavior, commands, data models, and display calculations.</td>
+<td><code>WaterFilterCBZ.Tests/*</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-subsystems-and-software-items">1.3 Subsystems and Software Items</h3>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Software item</th>
+<th>Description</th>
+<th>Safety relevance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Application lifecycle</td>
+<td><code>App</code></td>
+<td>Configures logging on startup and flushes logging on exit.</td>
+<td>Supports auditability and post-event diagnosis.</td>
+</tr>
+<tr>
+<td>Main window composition</td>
+<td><code>MainWindow</code></td>
+<td>Owns the view model, creates and disposes the serial service, and bridges UI connection commands to service calls.</td>
+<td>Controls connection lifecycle and resource cleanup.</td>
+</tr>
+<tr>
+<td>User interface</td>
+<td><code>MainWindow.xaml</code></td>
+<td>Displays connection state, sample count, charts, active sensors, and connection controls.</td>
+<td>Human-facing presentation of monitored values.</td>
+</tr>
+<tr>
+<td>View model</td>
+<td><code>SensorViewModel</code></td>
+<td>Maintains dashboard state, command enablement, chart models, sample count, and sensor statistics.</td>
+<td>Prevents unsafe UI thread access through dispatcher use; limits chart history.</td>
+</tr>
+<tr>
+<td>Sensor display model</td>
+<td><code>SensorDisplayInfo</code></td>
+<td>Tracks current, minimum, maximum, average, reading count, and last update for each active sensor.</td>
+<td>Supports operator interpretation of sensor values.</td>
+</tr>
+<tr>
+<td>Command abstraction</td>
+<td><code>RelayCommand</code>, <code>RelayCommand&lt;T&gt;</code></td>
+<td>Implements WPF <code>ICommand</code> for UI actions.</td>
+<td>Prevents invalid connect/disconnect actions through command predicates.</td>
+</tr>
+<tr>
+<td>Serial service interface</td>
+<td><code>ISerialPortService</code></td>
+<td>Abstracts serial-service lifecycle for testability and substitution.</td>
+<td>Enables verification and future isolation.</td>
+</tr>
+<tr>
+<td>Serial service</td>
+<td><code>SerialPortService</code></td>
+<td>Handles COM configuration, asynchronous byte ingestion, parser state, frame validation, timestamp decoding, and sample dispatch.</td>
+<td>Primary input validation and malformed-frame containment.</td>
+</tr>
+<tr>
+<td>Sensor sample model</td>
+<td><code>SensorSample</code></td>
+<td>Represents a decoded sensor reading. Includes legacy CSV parser helper.</td>
+<td>Carries measurement identity, timestamp, and value.</td>
+</tr>
+<tr>
+<td>Serial port discovery</td>
+<td><code>SerialPortHelper</code></td>
+<td>Lists available COM ports and checks port availability.</td>
+<td>Reduces incorrect connection selection risk.</td>
+</tr>
+<tr>
+<td>Logging</td>
+<td><code>LoggingService</code></td>
+<td>Configures debug and rolling file logs using Serilog.</td>
+<td>Provides diagnostic evidence for failures and unexpected input.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-units-modules-and-components">1.4 Units, Modules, and Components</h3>
+<pre><code class="language-text">Application startup and shutdown
+|-- App.OnStartup()
+|-- App.OnExit()
+`-- LoggingService.ConfigureLogging()
+
+Window and lifecycle orchestration
+|-- MainWindow.InitializeSerialService()
+|-- MainWindow.OnConnectRequested()
+|-- MainWindow.OnDisconnectRequested()
+`-- MainWindow.OnClosed()
+
+Serial acquisition and parsing
+|-- SerialPortService.Connect()
+|-- SerialPortService.Disconnect()
+|-- SerialPortService.SetPort()
+|-- SerialPortService.OnDataReceived()
+|-- SerialPortService.ProcessIncomingDataAsync()
+|-- SerialPortService.ParseReceiveBuffer()
+|-- SerialPortService.ResyncToNextStartByte()
+|-- SerialPortService.ValidateChecksum()
+|-- SerialPortService.ParseFrame()
+`-- SerialPortService.DecodeTimestamp()
+
+Dashboard model
+|-- SensorViewModel.RefreshAvailablePorts()
+|-- SensorViewModel.AddSample()
+|-- SensorViewModel.UpdateChartForSensor()
+|-- SensorViewModel.ClearAllData()
+`-- SensorViewModel.UpdateConnectionStatus()
+
+Domain and display state
+|-- SensorSample.TryParseCsv()
+|-- SensorDisplayInfo.AddValue()
+|-- ViewModelBase.SetProperty()
+`-- ViewModelBase.OnPropertyChanged()
+</code></pre>
+<h3 id="15-runtime-data-flow">1.5 Runtime Data Flow</h3>
+<pre><code class="language-text">Microcontroller
+  -&gt; USB serial / COM port
+    -&gt; System.IO.Ports.SerialPort
+      -&gt; SerialPortService.OnDataReceived()
+        -&gt; ConcurrentQueue&lt;byte[]&gt;
+          -&gt; SerialPortService.ProcessIncomingDataAsync()
+            -&gt; SerialPortService.ParseReceiveBuffer()
+              -&gt; frame validation and checksum validation
+                -&gt; SerialPortService.ParseFrame()
+                  -&gt; SensorSample
+                    -&gt; SensorViewModel.AddSample()
+                      -&gt; SensorDisplayInfo statistics
+                      -&gt; OxyPlot PlotModel update via WPF Dispatcher
+                        -&gt; MainWindow display
+</code></pre>
+<h3 id="16-static-dependencies">1.6 Static Dependencies</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Depends on</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>App</code></td>
+<td><code>LoggingService</code>, Serilog</td>
+<td>Initializes infrastructure.</td>
+</tr>
+<tr>
+<td><code>MainWindow</code></td>
+<td><code>SensorViewModel</code>, <code>SerialPortService</code>, Serilog</td>
+<td>Orchestrates runtime object creation.</td>
+</tr>
+<tr>
+<td><code>SensorViewModel</code></td>
+<td><code>SensorSample</code>, <code>SerialPortHelper</code>, OxyPlot, WPF Dispatcher, Serilog</td>
+<td>Presentation logic and dashboard state.</td>
+</tr>
+<tr>
+<td><code>SerialPortService</code></td>
+<td><code>System.IO.Ports</code>, <code>SensorSample</code>, Serilog, <code>ConcurrentQueue</code></td>
+<td>Hardware interface and parser.</td>
+</tr>
+<tr>
+<td><code>SerialPortHelper</code></td>
+<td><code>System.IO.Ports</code></td>
+<td>Port discovery.</td>
+</tr>
+<tr>
+<td><code>LoggingService</code></td>
+<td>Serilog</td>
+<td>Logging setup.</td>
+</tr>
+<tr>
+<td>Tests</td>
+<td>xUnit, production components</td>
+<td>Unit-level verification.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-interfaces">2. Interfaces</h2>
+<h3 id="21-user-interface-interfaces">2.1 User Interface Interfaces</h3>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Type</th>
+<th>Producer</th>
+<th>Consumer</th>
+<th>Data or command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WPF data binding</td>
+<td>Property binding</td>
+<td><code>SensorViewModel</code></td>
+<td><code>MainWindow.xaml</code></td>
+<td>Connection status, status message, sample count, sensor list, available ports, selected port, chart models.</td>
+</tr>
+<tr>
+<td>WPF commands</td>
+<td><code>ICommand</code></td>
+<td><code>SensorViewModel</code></td>
+<td>Buttons in <code>MainWindow.xaml</code></td>
+<td>Clear data, connect, disconnect.</td>
+</tr>
+<tr>
+<td>View model events</td>
+<td>.NET <code>Action</code> events</td>
+<td><code>SensorViewModel</code></td>
+<td><code>MainWindow</code></td>
+<td>Connection request and disconnection request.</td>
+</tr>
+<tr>
+<td>Property change notification</td>
+<td><code>INotifyPropertyChanged</code></td>
+<td><code>ViewModelBase</code> derivatives</td>
+<td>WPF binding engine</td>
+<td>Property updates for UI refresh.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-service-interfaces">2.2 Service Interfaces</h3>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Type</th>
+<th>Operations</th>
+<th>Current implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ISerialPortService</code></td>
+<td>C# interface</td>
+<td><code>Connect()</code>, <code>Disconnect()</code>, <code>SetPort()</code>, <code>Dispose()</code>, <code>IsConnected</code>, <code>ConnectionStatusChanged</code></td>
+<td>Implemented by <code>SerialPortService</code>.</td>
+</tr>
+<tr>
+<td>Sample callback</td>
+<td><code>Action&lt;SensorSample&gt;</code></td>
+<td>Emits validated decoded samples to the application state layer.</td>
+<td>Passed from <code>MainWindow.InitializeSerialService()</code> to <code>SerialPortService</code>.</td>
+</tr>
+<tr>
+<td>Connection status event</td>
+<td>.NET event</td>
+<td>Notifies when serial connection state changes.</td>
+<td>Raised by <code>SerialPortService.OnConnectionStatusChanged()</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-hardware-and-operating-system-interfaces">2.3 Hardware and Operating System Interfaces</h3>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Type</th>
+<th>Configuration or behavior</th>
+<th>Architectural controls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USB serial / COM port</td>
+<td>Hardware abstraction through <code>System.IO.Ports.SerialPort</code></td>
+<td>115200 baud default, 8 data bits, no parity, 1 stop bit, 500 ms read/write timeout.</td>
+<td>Explicit port selection, connection status handling, exception logging, disconnect disposal.</td>
+</tr>
+<tr>
+<td>COM port discovery</td>
+<td>Windows serial-port enumeration</td>
+<td><code>SerialPort.GetPortNames()</code></td>
+<td>UI selection list is refreshed from available ports.</td>
+</tr>
+<tr>
+<td>File system logging</td>
+<td><code>%AppData%/WaterFilterCBZ/logs</code></td>
+<td>Daily rolling logs at information level and above.</td>
+<td>Centralized logging initialization and shutdown flush.</td>
+</tr>
+<tr>
+<td>WPF Dispatcher</td>
+<td>UI-thread marshaling</td>
+<td><code>Dispatcher.Invoke()</code> and <code>Dispatcher.BeginInvoke()</code></td>
+<td>Prevents direct background-thread mutation of UI-bound collections and plot updates.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-serial-protocol-interface">2.4 Serial Protocol Interface</h3>
+<p>The current binary serial protocol uses framed packets.</p>
+<pre><code class="language-text">START(0xAA) | COUNT | SENSOR_ENTRY_1 ... SENSOR_ENTRY_N | CHECKSUM | END(0x55)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th style="text-align:right">Size</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>START</code></td>
+<td style="text-align:right">1 byte</td>
+<td>Must be <code>0xAA</code>. Parser resynchronizes to this byte.</td>
+</tr>
+<tr>
+<td><code>COUNT</code></td>
+<td style="text-align:right">1 byte</td>
+<td>Must be 1 through 4.</td>
+</tr>
+<tr>
+<td><code>SENSOR_ENTRY</code></td>
+<td style="text-align:right">10 bytes each</td>
+<td><code>SENSOR_ID(1)</code>, <code>TIMESTAMP_MS(uint32)</code>, <code>UNIT_ID(1)</code>, <code>VALUE(float32)</code>.</td>
+</tr>
+<tr>
+<td><code>CHECKSUM</code></td>
+<td style="text-align:right">1 byte</td>
+<td>8-bit sum from <code>START</code> through the final payload byte.</td>
+</tr>
+<tr>
+<td><code>END</code></td>
+<td style="text-align:right">1 byte</td>
+<td>Must be <code>0x55</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Parser behavior:</p>
+<ul>
+<li>Invalid sensor counts are rejected.</li>
+<li>Invalid end bytes are rejected.</li>
+<li>Invalid checksums are rejected.</li>
+<li>Noise before a start byte is discarded.</li>
+<li>Parser resynchronizes to the next start byte after malformed frames.</li>
+<li>Partial frame assembly is reset after the configured timeout.</li>
+<li>Valid frames emit one <code>SensorSample</code> per sensor entry.</li>
+</ul>
+<h3 id="25-internal-queues-events-and-asynchronous-execution">2.5 Internal Queues, Events, and Asynchronous Execution</h3>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Location</th>
+<th>Purpose</th>
+<th>Safety consideration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ConcurrentQueue&lt;byte[]&gt;</code></td>
+<td><code>SerialPortService</code></td>
+<td>Transfers byte chunks from the serial event handler to the processing task.</td>
+<td>Keeps serial event handling short and separates acquisition from parsing.</td>
+</tr>
+<tr>
+<td>Background task</td>
+<td><code>SerialPortService.ProcessIncomingDataAsync()</code></td>
+<td>Processes queued byte chunks until cancellation.</td>
+<td>Cancellation token supports controlled disconnect.</td>
+</tr>
+<tr>
+<td>Parser receive buffer</td>
+<td><code>SerialPortService._receiveBuffer</code></td>
+<td>Maintains frame assembly state across chunks.</td>
+<td>Bounded by parser resynchronization and timeout behavior, but no explicit maximum buffer length is currently enforced beyond malformed-frame handling.</td>
+</tr>
+<tr>
+<td>WPF dispatcher</td>
+<td><code>SensorViewModel</code></td>
+<td>Moves UI-bound collection and chart updates onto the UI thread.</td>
+<td>Prevents cross-thread UI access faults.</td>
+</tr>
+<tr>
+<td>OxyPlot model invalidation</td>
+<td><code>SensorViewModel.UpdateChartForSensor()</code></td>
+<td>Refreshes chart visualization after point insertion.</td>
+<td>Per-sensor throttling reduces UI overload.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-external-library-interfaces">2.6 External Library Interfaces</h3>
+<table>
+<thead>
+<tr>
+<th>Library</th>
+<th>Use</th>
+<th>Architectural dependency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>System.IO.Ports</code></td>
+<td>Serial communication and COM port enumeration.</td>
+<td>Hardware access abstraction.</td>
+</tr>
+<tr>
+<td><code>OxyPlot.Wpf</code></td>
+<td>Real-time line charts.</td>
+<td>Visualization layer.</td>
+</tr>
+<tr>
+<td><code>Serilog</code></td>
+<td>Structured debug and file logging.</td>
+<td>Audit and diagnostics layer.</td>
+</tr>
+<tr>
+<td><code>xUnit</code></td>
+<td>Unit testing.</td>
+<td>Verification layer.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-embedded-system-interface-considerations">2.7 Embedded-System Interface Considerations</h3>
+<p>WaterFilterCBZ runs on Windows and does not contain RTOS tasks, ISRs, shared memory, or embedded driver code. The embedded microcontroller is outside this repository but forms part of the complete system architecture through the serial protocol.</p>
+<p>For the complete medical-device system architecture, the following firmware-side interfaces should be documented in the corresponding embedded design file:</p>
+<ul>
+<li>Sensor sampling tasks and scheduling period.</li>
+<li>Any ISR-to-task queues used to acquire raw sensor measurements.</li>
+<li>Firmware serial transmit task.</li>
+<li>Sensor driver interfaces.</li>
+<li>Communication bus interfaces between sensors and the microcontroller.</li>
+<li>Watchdog, brownout, and communication-fault handling in firmware.</li>
+<li>Firmware/software version compatibility for the serial frame protocol.</li>
+</ul>
+<h2 id="3-segregation-for-safety">3. Segregation for Safety</h2>
+<h3 id="31-safety-context">3.1 Safety Context</h3>
+<p>The current software provides monitoring, visualization, and logging of sensor values. The final IEC 62304 software safety class must be assigned from the device risk management file based on the intended medical use and whether incorrect, delayed, or missing displayed values can contribute to hazardous situations.</p>
+<p>If classified as Class C, the architecture must provide strong evidence that safety-critical behavior is isolated, validated, supervised, and verified. The table below separates implemented architectural controls from controls that should be completed or formally justified for a Class C submission.</p>
+<h3 id="32-implemented-segregation-and-risk-reduction-controls">3.2 Implemented Segregation and Risk-Reduction Controls</h3>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Architectural location</th>
+<th>Hazard contribution reduced</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UI, state, service, model, and utility separation</td>
+<td>MVVM layering across <code>MainWindow</code>, <code>SensorViewModel</code>, <code>SerialPortService</code>, models, and utilities.</td>
+<td>Reduces coupling between display logic and serial parsing.</td>
+</tr>
+<tr>
+<td>Serial-service interface</td>
+<td><code>ISerialPortService</code></td>
+<td>Supports testability and future substitution of a validated acquisition component.</td>
+</tr>
+<tr>
+<td>Dedicated serial acquisition service</td>
+<td><code>SerialPortService</code></td>
+<td>Contains hardware access, parser state, checksum validation, and resynchronization in one module.</td>
+</tr>
+<tr>
+<td>Asynchronous byte queue</td>
+<td><code>ConcurrentQueue&lt;byte[]&gt;</code> in <code>SerialPortService</code></td>
+<td>Reduces blocking inside the serial data-received event handler.</td>
+</tr>
+<tr>
+<td>Frame validation before sample dispatch</td>
+<td><code>ParseReceiveBuffer()</code>, <code>ValidateChecksum()</code>, <code>ParseFrame()</code></td>
+<td>Reduces risk of presenting corrupt serial data as valid samples.</td>
+</tr>
+<tr>
+<td>Sensor count limit</td>
+<td><code>MAX_SENSORS = 4</code></td>
+<td>Prevents unexpected packet counts from expanding processing or display beyond the designed scope.</td>
+</tr>
+<tr>
+<td>Parser resynchronization</td>
+<td><code>ResyncToNextStartByte()</code></td>
+<td>Allows recovery from malformed or noisy input.</td>
+</tr>
+<tr>
+<td>Frame assembly timeout</td>
+<td><code>FrameAssemblyTimeout</code></td>
+<td>Prevents indefinite partial-frame accumulation.</td>
+</tr>
+<tr>
+<td>UI thread marshaling</td>
+<td><code>Dispatcher.Invoke()</code> and <code>Dispatcher.BeginInvoke()</code></td>
+<td>Reduces concurrency faults in UI-bound data structures.</td>
+</tr>
+<tr>
+<td>Chart point retention limit</td>
+<td>Maximum 300 points per sensor series.</td>
+<td>Reduces unbounded chart memory growth during long monitoring sessions.</td>
+</tr>
+<tr>
+<td>Connection lifecycle cleanup</td>
+<td><code>Disconnect()</code>, <code>Dispose()</code>, <code>MainWindow.OnClosed()</code></td>
+<td>Reduces stale serial connection and resource leak risks.</td>
+</tr>
+<tr>
+<td>Operational logging</td>
+<td><code>LoggingService</code> and Serilog calls throughout services and view model.</td>
+<td>Supports diagnosis of connection, parsing, and processing failures.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-required-or-recommended-class-c-hardening-items">3.3 Required or Recommended Class C Hardening Items</h3>
+<p>The following items are not fully implemented in the current repository and should be handled as requirements, design changes, verification activities, or documented risk acceptances if Class C applies.</p>
+<table>
+<thead>
+<tr>
+<th>Safety need</th>
+<th>Recommended architectural control</th>
+<th>Current status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prevent undetected communication loss</td>
+<td>Add heartbeat or maximum sample age supervision per sensor, with visible stale-data state and alarm/event logging.</td>
+<td>Not currently implemented.</td>
+</tr>
+<tr>
+<td>Avoid accepting physically implausible values</td>
+<td>Add sensor-specific range validation, unit validation, and invalid-value rejection or quarantine.</td>
+<td>Not currently implemented.</td>
+</tr>
+<tr>
+<td>Prevent display of data from incompatible firmware</td>
+<td>Add protocol version, device identity, and frame schema compatibility checks.</td>
+<td>Not currently implemented.</td>
+</tr>
+<tr>
+<td>Strengthen corruption detection</td>
+<td>Replace 8-bit additive checksum with CRC if required by risk analysis.</td>
+<td>Current checksum is simple additive validation.</td>
+</tr>
+<tr>
+<td>Bound parser memory under sustained malicious or noisy input</td>
+<td>Add explicit maximum receive-buffer length and log/drop behavior.</td>
+<td>Partial mitigation exists through resynchronization and timeout.</td>
+</tr>
+<tr>
+<td>Detect processing-task failure</td>
+<td>Add task fault reporting, reconnect strategy, or supervisory watchdog at the application layer.</td>
+<td>Exceptions are logged, but no supervisor restarts the task.</td>
+</tr>
+<tr>
+<td>Isolate safety-critical decisions</td>
+<td>Keep any therapy, dosing, shutoff, or alarm decision logic outside the display layer and in a separately verified component.</td>
+<td>No therapy-control logic exists in this application.</td>
+</tr>
+<tr>
+<td>Protect configuration</td>
+<td>Add controlled configuration storage, validation, and audit trail for port, baud rate, thresholds, and sensor definitions.</td>
+<td>Port selection and baud rate exist, but no controlled persistent configuration.</td>
+</tr>
+<tr>
+<td>Support cybersecurity and misuse controls</td>
+<td>Add device authentication or trusted-port/device identity checks if required by the threat model.</td>
+<td>Not currently implemented.</td>
+</tr>
+<tr>
+<td>Ensure verified failure presentation</td>
+<td>Define and test UI states for disconnected, stale, invalid, out-of-range, parser error, and device mismatch conditions.</td>
+<td>Some connection states exist; detailed failure-state taxonomy is incomplete.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-architectural-safety-principles">3.4 Architectural Safety Principles</h3>
+<p>The architecture should observe these principles as the software evolves:</p>
+<ul>
+<li>Safety-relevant data must be validated before entering dashboard state.</li>
+<li>UI rendering must not perform safety decisions.</li>
+<li>Hardware communication faults must be contained in the service layer and surfaced as explicit application states.</li>
+<li>Background processing failures must be logged and made visible to the operator when they affect monitoring.</li>
+<li>Sensor identity, value, unit, timestamp, and freshness must be treated as separate validity concerns.</li>
+<li>Any future risk-control algorithms must be implemented in dedicated, testable components with clear interfaces and independent verification.</li>
+</ul>
+<h3 id="35-failure-handling">3.5 Failure Handling</h3>
+<table>
+<thead>
+<tr>
+<th>Failure condition</th>
+<th>Current behavior</th>
+<th>IEC 62304 concern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>COM port cannot be opened</td>
+<td>Error is logged; connection status event is raised; application remains disconnected.</td>
+<td>Verify UI message and user recovery path.</td>
+</tr>
+<tr>
+<td>Serial read error</td>
+<td>Warning is logged; processing continues.</td>
+<td>Define acceptable recovery behavior and alarm visibility.</td>
+</tr>
+<tr>
+<td>Serial port error event</td>
+<td>Error is logged.</td>
+<td>Determine whether operator notification is required.</td>
+</tr>
+<tr>
+<td>Invalid sensor count</td>
+<td>Frame is rejected and parser resynchronizes.</td>
+<td>Covered by architectural input validation; add direct parser tests.</td>
+</tr>
+<tr>
+<td>Invalid end byte</td>
+<td>Frame is rejected and parser resynchronizes.</td>
+<td>Covered by architectural input validation; add direct parser tests.</td>
+</tr>
+<tr>
+<td>Invalid checksum</td>
+<td>Frame is rejected and parser resynchronizes.</td>
+<td>Covered by architectural input validation; add direct parser tests.</td>
+</tr>
+<tr>
+<td>Partial frame timeout</td>
+<td>Receive buffer is cleared and warning is logged.</td>
+<td>Add test coverage and define operator visibility if frequent.</td>
+</tr>
+<tr>
+<td>More than four sensor identities displayed</td>
+<td>Additional chart assignment is ignored after four plots.</td>
+<td>Define intended behavior for extra sensors and operator notification.</td>
+</tr>
+<tr>
+<td>UI chart update overload</td>
+<td>Plot updates are throttled per sensor.</td>
+<td>Verify performance at maximum supported sample rate.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-traceability">4. Traceability</h2>
+<h3 id="41-traceability-model">4.1 Traceability Model</h3>
+<p>The recommended traceability chain is:</p>
+<pre><code class="language-text">Hazard
+  -&gt; Risk Control
+    -&gt; Software Requirement
+      -&gt; Architectural Element
+        -&gt; Unit
+          -&gt; Verification
+</code></pre>
+<p>Traceability identifiers in this draft are proposed identifiers. They should be synchronized with the project requirements specification, risk management file, detailed design, and verification protocol.</p>
+<h3 id="42-architectural-element-identifiers">4.2 Architectural Element Identifiers</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Architectural element</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AE-APP-001</td>
+<td>Application lifecycle and logging startup/shutdown</td>
+<td><code>App</code>, <code>LoggingService</code></td>
+</tr>
+<tr>
+<td>AE-UI-001</td>
+<td>Main WPF dashboard view</td>
+<td><code>MainWindow.xaml</code>, <code>MainWindow.xaml.cs</code></td>
+</tr>
+<tr>
+<td>AE-VM-001</td>
+<td>Dashboard view model and command layer</td>
+<td><code>SensorViewModel</code>, <code>RelayCommand</code>, <code>ViewModelBase</code></td>
+</tr>
+<tr>
+<td>AE-ACQ-001</td>
+<td>Serial acquisition service</td>
+<td><code>SerialPortService</code>, <code>ISerialPortService</code></td>
+</tr>
+<tr>
+<td>AE-PROTO-001</td>
+<td>Serial frame parser and validator</td>
+<td><code>ParseReceiveBuffer()</code>, <code>ValidateChecksum()</code>, <code>ParseFrame()</code></td>
+</tr>
+<tr>
+<td>AE-MODEL-001</td>
+<td>Sensor sample and display data models</td>
+<td><code>SensorSample</code>, <code>SensorDisplayInfo</code></td>
+</tr>
+<tr>
+<td>AE-UTIL-001</td>
+<td>Serial port discovery</td>
+<td><code>SerialPortHelper</code></td>
+</tr>
+<tr>
+<td>AE-LOG-001</td>
+<td>Diagnostic logging</td>
+<td><code>LoggingService</code>, Serilog usage</td>
+</tr>
+<tr>
+<td>AE-TEST-001</td>
+<td>Automated unit tests</td>
+<td><code>WaterFilterCBZ.Tests</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-requirement-to-architecture-traceability">4.3 Requirement-to-Architecture Traceability</h3>
+<table>
+<thead>
+<tr>
+<th>Software requirement ID</th>
+<th>Requirement summary</th>
+<th>Architectural element</th>
+<th>Unit or component</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SRS-001</td>
+<td>The software shall enumerate available Windows COM ports.</td>
+<td>AE-UTIL-001, AE-VM-001</td>
+<td><code>SerialPortHelper.GetAvailablePorts()</code>, <code>SensorViewModel.RefreshAvailablePorts()</code></td>
+<td>Unit/integration test to be added; manual UI verification.</td>
+</tr>
+<tr>
+<td>SRS-002</td>
+<td>The software shall allow the user to select and connect to a COM port.</td>
+<td>AE-UI-001, AE-VM-001, AE-ACQ-001</td>
+<td><code>SelectedPort</code>, <code>ConnectCommand</code>, <code>MainWindow.InitializeSerialService()</code>, <code>SerialPortService.Connect()</code></td>
+<td>Existing serial failure test; UI integration test to be added.</td>
+</tr>
+<tr>
+<td>SRS-003</td>
+<td>The software shall receive sensor data using configured serial settings.</td>
+<td>AE-ACQ-001</td>
+<td><code>SerialPortService.Connect()</code>, <code>OnDataReceived()</code></td>
+<td>Existing baud-rate tests; hardware integration test to be added.</td>
+</tr>
+<tr>
+<td>SRS-004</td>
+<td>The software shall accept only well-formed binary frames.</td>
+<td>AE-PROTO-001</td>
+<td><code>ParseReceiveBuffer()</code>, <code>ValidateChecksum()</code>, <code>ParseFrame()</code></td>
+<td>Parser validation tests to be expanded.</td>
+</tr>
+<tr>
+<td>SRS-005</td>
+<td>The software shall reject frames with invalid sensor count, checksum, or end byte.</td>
+<td>AE-PROTO-001</td>
+<td><code>ParseReceiveBuffer()</code>, <code>ValidateChecksum()</code></td>
+<td>Parser rejection tests to be added.</td>
+</tr>
+<tr>
+<td>SRS-006</td>
+<td>The software shall decode each valid sensor entry into a sensor sample.</td>
+<td>AE-PROTO-001, AE-MODEL-001</td>
+<td><code>ParseFrame()</code>, <code>DecodeTimestamp()</code>, <code>SensorSample</code></td>
+<td>Existing timestamp decode test.</td>
+</tr>
+<tr>
+<td>SRS-007</td>
+<td>The software shall display current sensor value and summary statistics.</td>
+<td>AE-VM-001, AE-MODEL-001, AE-UI-001</td>
+<td><code>SensorViewModel.AddSample()</code>, <code>SensorDisplayInfo.AddValue()</code></td>
+<td>Existing <code>SensorDisplayInfo</code> tests; UI test to be added.</td>
+</tr>
+<tr>
+<td>SRS-008</td>
+<td>The software shall plot sensor values over time for up to four sensors.</td>
+<td>AE-VM-001, AE-UI-001</td>
+<td><code>UpdateChartForSensor()</code>, OxyPlot <code>PlotModel</code> bindings</td>
+<td>Unit/integration test to be added; manual chart verification.</td>
+</tr>
+<tr>
+<td>SRS-009</td>
+<td>The software shall allow the user to clear displayed sensor data.</td>
+<td>AE-VM-001, AE-UI-001</td>
+<td><code>ClearDataCommand</code>, <code>ClearAllData()</code></td>
+<td>Unit test to be added.</td>
+</tr>
+<tr>
+<td>SRS-010</td>
+<td>The software shall log startup, shutdown, connection, parsing, and processing events.</td>
+<td>AE-APP-001, AE-LOG-001, AE-ACQ-001, AE-VM-001</td>
+<td><code>LoggingService</code>, Serilog calls</td>
+<td>Log file verification test/procedure to be added.</td>
+</tr>
+<tr>
+<td>SRS-011</td>
+<td>The software shall disconnect and release serial resources on user request or application close.</td>
+<td>AE-UI-001, AE-ACQ-001</td>
+<td><code>OnDisconnectRequested()</code>, <code>OnClosed()</code>, <code>Disconnect()</code>, <code>Dispose()</code></td>
+<td>Existing dispose/disconnect tests; UI lifecycle test to be added.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-risk-control-traceability">4.4 Risk-Control Traceability</h3>
+<table>
+<thead>
+<tr>
+<th>Hazard ID</th>
+<th>Hazardous situation</th>
+<th>Risk control ID</th>
+<th>Risk control summary</th>
+<th>Requirement</th>
+<th>Architectural element</th>
+<th>Verification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HAZ-001</td>
+<td>Incorrect sensor value is displayed due to corrupt serial data.</td>
+<td>RC-001</td>
+<td>Validate frame structure and checksum before accepting data.</td>
+<td>SRS-004, SRS-005</td>
+<td>AE-PROTO-001</td>
+<td>Parser validation/rejection tests.</td>
+</tr>
+<tr>
+<td>HAZ-002</td>
+<td>Operator relies on stale data after communication stops.</td>
+<td>RC-002</td>
+<td>Detect missing samples or stale sensor timestamps and display stale state.</td>
+<td>SRS-C-001 proposed</td>
+<td>AE-VM-001, AE-ACQ-001</td>
+<td>Not implemented; stale-data tests required.</td>
+</tr>
+<tr>
+<td>HAZ-003</td>
+<td>Data from wrong or incompatible device is displayed.</td>
+<td>RC-003</td>
+<td>Verify device identity and protocol version before accepting samples.</td>
+<td>SRS-C-002 proposed</td>
+<td>AE-PROTO-001, AE-ACQ-001</td>
+<td>Not implemented; compatibility tests required.</td>
+</tr>
+<tr>
+<td>HAZ-004</td>
+<td>Application hangs or becomes unresponsive under high-rate input.</td>
+<td>RC-004</td>
+<td>Use asynchronous acquisition and throttle chart updates.</td>
+<td>SRS-003, SRS-008</td>
+<td>AE-ACQ-001, AE-VM-001</td>
+<td>Performance/stress test required.</td>
+</tr>
+<tr>
+<td>HAZ-005</td>
+<td>Malformed serial stream causes memory growth or parser lockup.</td>
+<td>RC-005</td>
+<td>Resynchronize parser and time out partial frames; add explicit buffer cap.</td>
+<td>SRS-004, SRS-C-003 proposed</td>
+<td>AE-PROTO-001</td>
+<td>Partial coverage; malformed-stream stress tests required.</td>
+</tr>
+<tr>
+<td>HAZ-006</td>
+<td>User connects to unavailable or incorrect COM port.</td>
+<td>RC-006</td>
+<td>Enumerate available ports and show connection status.</td>
+<td>SRS-001, SRS-002</td>
+<td>AE-UTIL-001, AE-VM-001, AE-UI-001</td>
+<td>Manual and automated UI tests required.</td>
+</tr>
+<tr>
+<td>HAZ-007</td>
+<td>Failure cannot be reconstructed after incident.</td>
+<td>RC-007</td>
+<td>Record relevant operational events in rolling logs.</td>
+<td>SRS-010</td>
+<td>AE-LOG-001</td>
+<td>Log verification procedure required.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-detailed-design-traceability">4.5 Detailed Design Traceability</h3>
+<table>
+<thead>
+<tr>
+<th>Architectural element</th>
+<th>Detailed design unit</th>
+<th>Existing test coverage</th>
+<th>Additional verification recommended</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AE-ACQ-001</td>
+<td><code>SerialPortService.Connect()</code></td>
+<td>Port-open failure behavior, default/configurable baud rate.</td>
+<td>Successful hardware connection test; serial error event handling.</td>
+</tr>
+<tr>
+<td>AE-ACQ-001</td>
+<td><code>SerialPortService.Disconnect()</code> and <code>Dispose()</code></td>
+<td>Disconnected no-op and repeated dispose behavior.</td>
+<td>Disconnect while processing queued data.</td>
+</tr>
+<tr>
+<td>AE-PROTO-001</td>
+<td><code>SerialPortService.ParseFrame()</code></td>
+<td>Valid multi-sensor frame timestamp decoding.</td>
+<td>Invalid length, invalid count, invalid value encoding, unit handling.</td>
+</tr>
+<tr>
+<td>AE-PROTO-001</td>
+<td><code>SerialPortService.ParseReceiveBuffer()</code></td>
+<td>Not directly covered.</td>
+<td>Noise before start byte, invalid checksum, invalid end byte, timeout, resync.</td>
+</tr>
+<tr>
+<td>AE-VM-001</td>
+<td><code>SensorViewModel.AddSample()</code></td>
+<td>Indirectly through display info tests only.</td>
+<td>New sensor registration, sample count, dispatcher behavior, chart assignment.</td>
+</tr>
+<tr>
+<td>AE-MODEL-001</td>
+<td><code>SensorDisplayInfo.AddValue()</code></td>
+<td>Current, min, max, average, count, property change.</td>
+<td>Numeric edge cases if required by risk analysis.</td>
+</tr>
+<tr>
+<td>AE-MODEL-001</td>
+<td><code>SensorSample.TryParseCsv()</code></td>
+<td>Valid/invalid CSV and invariant decimal parsing.</td>
+<td>Confirm whether legacy CSV parser remains in intended design.</td>
+</tr>
+<tr>
+<td>AE-VM-001</td>
+<td><code>RelayCommand</code></td>
+<td>Command behavior tests exist.</td>
+<td>Command enablement under connection state transitions.</td>
+</tr>
+<tr>
+<td>AE-LOG-001</td>
+<td><code>LoggingService.ConfigureLogging()</code></td>
+<td>Not directly covered.</td>
+<td>Verify log path creation and minimum event content.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="46-verification-traceability-summary">4.6 Verification Traceability Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Verification artifact</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SerialPortServiceTests</code></td>
+<td>Serial service construction, connection failure, baud rate configuration, port setting, disconnect/dispose behavior, timestamp decoding from valid frames.</td>
+</tr>
+<tr>
+<td><code>SensorDisplayInfoTests</code></td>
+<td>Sensor statistics and property-change notification.</td>
+</tr>
+<tr>
+<td><code>SensorSampleTests</code></td>
+<td>Legacy CSV parser behavior.</td>
+</tr>
+<tr>
+<td><code>RelayCommandTests</code></td>
+<td>Command execution and command enablement behavior.</td>
+</tr>
+<tr>
+<td>Proposed integration tests</td>
+<td>COM-port lifecycle using test double or loopback, parser malformed-frame behavior, stale-data state, chart update behavior, logging behavior.</td>
+</tr>
+<tr>
+<td>Proposed system tests</td>
+<td>Hardware-in-the-loop verification with representative firmware, sustained serial input, disconnect/reconnect, malformed-stream injection, operator-visible failure states.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-open-architectural-items">5. Open Architectural Items</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Item</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OAI-001</td>
+<td>Confirm IEC 62304 software safety class.</td>
+<td>Determines required rigor, independence, and architectural risk controls.</td>
+</tr>
+<tr>
+<td>OAI-002</td>
+<td>Define intended clinical or operational use of displayed values.</td>
+<td>Determines whether stale or incorrect display can contribute to harm.</td>
+</tr>
+<tr>
+<td>OAI-003</td>
+<td>Define sensor ranges, units, and plausibility rules.</td>
+<td>Needed for safety validation beyond frame integrity.</td>
+</tr>
+<tr>
+<td>OAI-004</td>
+<td>Define maximum expected sample rate and communication-loss timeout.</td>
+<td>Needed for performance and stale-data requirements.</td>
+</tr>
+<tr>
+<td>OAI-005</td>
+<td>Decide whether the legacy CSV parser remains in the product baseline.</td>
+<td>Unused code should be justified, removed, or verified.</td>
+</tr>
+<tr>
+<td>OAI-006</td>
+<td>Add formal protocol versioning and device identity if required by risk management.</td>
+<td>Prevents incompatible firmware/software combinations.</td>
+</tr>
+<tr>
+<td>OAI-007</td>
+<td>Expand parser tests to cover rejection and resynchronization paths.</td>
+<td>Current tests cover selected valid-frame behavior but not all risk controls.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-revision-history">6. Revision History</h2>
+<table>
+<thead>
+<tr>
+<th>Revision</th>
+<th>Date</th>
+<th>Author</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.1</td>
+<td>2026-05-12</td>
+<td>Codex</td>
+<td>Initial draft based on current WaterFilterCBZ repository architecture.</td>
+</tr>
+</tbody>
+</table>
+
+            
+            
+        </body>
+        </html>
