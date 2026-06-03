@@ -30,9 +30,14 @@ public class LoggingServiceTests
     }
 
     [Fact]
+    public void LogDirectory_IsAbsolutePath()
+    {
+        Assert.True(Path.IsPathRooted(LoggingService.LogDirectory));
+    }
+
+    [Fact]
     public void OpenLogDirectory_CreatesDirectoryIfMissing()
     {
-        // Verify the call ensures the directory exists without asserting on Process.Start side-effects.
         LoggingService.OpenLogDirectory();
 
         Assert.True(Directory.Exists(LoggingService.LogDirectory));

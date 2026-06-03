@@ -16,6 +16,7 @@ namespace WaterFilterCBZ.ViewModels
     /// </summary>
     public class SensorViewModel : ViewModelBase
     {
+        private readonly Action _openLogDirectory;
         private readonly Dictionary<string, SensorDisplayInfo> _sensorMap = new();
         private readonly Dictionary<string, int> _sensorPlotIndex = new();
         private readonly PlotModel[] _plots = new PlotModel[4];
@@ -76,8 +77,9 @@ namespace WaterFilterCBZ.ViewModels
             set => SetProperty(ref _sampleCount, value);
         }
 
-        public SensorViewModel()
+        public SensorViewModel(Action? openLogDirectory = null)
         {
+            _openLogDirectory = openLogDirectory ?? LoggingService.OpenLogDirectory;
             ClearDataCommand = new RelayCommand(ClearAllData);
             OpenLogsCommand = new RelayCommand(OpenLogs);
             ConnectCommand = new RelayCommand(OnConnect, CanConnect);
@@ -309,7 +311,7 @@ namespace WaterFilterCBZ.ViewModels
         {
             try
             {
-                LoggingService.OpenLogDirectory();
+                _openLogDirectory();
                 StatusMessage = $"Opened logs: {LoggingService.LogDirectory}";
             }
             catch (Exception ex)
