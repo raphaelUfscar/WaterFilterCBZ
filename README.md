@@ -27,6 +27,8 @@ WaterFilterCBZ/
 |   |-- RelayCommandTests.cs
 |   |-- SensorDisplayInfoTests.cs
 |   `-- SerialPortServiceTests.cs
+|-- WaterFilterCBZ.UITests/          # FlaUI end-to-end UI tests (local/dedicated agent)
+|   `-- ConnectionWorkflowTests.cs   # Full connect/stream/clear/disconnect via UI Automation
 |-- App.xaml / App.xaml.cs           # Application startup and shutdown
 |-- MainWindow.xaml / MainWindow.xaml.cs
 |-- WaterFilterCBZ.csproj
@@ -196,6 +198,12 @@ Run tests:
 
 ```powershell
 dotnet test WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj --no-restore
+```
+
+Run the end-to-end UI tests (local / dedicated agent only; requires a virtual COM pair and Python — see `WaterFilterCBZ.UITests/README.md`):
+
+```powershell
+dotnet test WaterFilterCBZ.UITests/WaterFilterCBZ.UITests.csproj
 ```
 
 Run simulator frame encoding tests:

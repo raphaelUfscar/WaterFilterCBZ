@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- These are end-to-end UI tests that drive the real WPF window via UI Automation.
+         They require an interactive desktop session, a virtual COM pair, and Python +
+         the bundled simulator. They are intentionally NOT part of the fast CI test run
+         (CI tests WaterFilterCBZ.Tests.csproj explicitly). Run locally / on a dedicated
+         interactive agent. Tests self-skip when the environment is unavailable. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <!-- Conditional/dynamic test skipping for xUnit v2 ([SkippableFact] + Skip.If). -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageReference Include="FlaUI.UIA3" Version="4.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+    <!-- Override FlaUI's vulnerable transitive System.Drawing.Common 5.0.2 (NU1904). -->
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+  </ItemGroup>
+
+  <!-- The app exe is located at runtime (see TestEnvironment.ResolveAppExe). A
+       ProjectReference is deliberately avoided so this UI project does not alter the
+       app's own build graph; build the app separately before running these tests. -->
+
+</Project>

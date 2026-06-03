@@ -19,14 +19,14 @@ Focus on testing individual components in isolation.
 
 Verify the interaction between different components of the application. This would involve testing the `SerialPortService` interacting with the `SensorViewModel`, or the `SensorViewModel` updating `OxyPlot` models.
 
-- ❌ **Not started (automated).** No automated integration tests exist. The Python serial simulator (`tools/sensor_simulator.py`) enables _manual_ end-to-end exercising of this path.
+- ⚠️ **Partial (local/dedicated agent).** `WaterFilterCBZ.UITests` drives the full connection workflow end-to-end through the real WPF UI (FlaUI + UIA3): select port → connect → live data from the Python simulator over a virtual COM pair → clear → disconnect. It is excluded from the fast CI run and self-skips when the COM pair / Python are absent (see `WaterFilterCBZ.UITests/README.md`). A pure headless `SerialPortService` ↔ `SensorViewModel` integration test (no UI, CI-friendly) is still not present.
 
 ## 3. System-Level Testing
 
 Test the complete application as a whole, often involving actual hardware.
 
 - **End-to-end communication with a microcontroller:** Conduct tests with a physical microcontroller sending data to the application to validate the entire data pipeline from serial reception to UI display.
-  - ⚠️ **Partially enabled.** The Python simulator emits the real binary frame format over a virtual COM pair, so the full pipeline can be exercised without hardware — but this is manual, not automated.
+  - ⚠️ **Partially automated.** `WaterFilterCBZ.UITests` exercises the full pipeline (simulator → serial → parse → ViewModel → UI) end-to-end over a virtual COM pair without hardware. Validation against a _physical_ microcontroller is still manual.
 - **UI responsiveness and data accuracy:** Verify that the UI updates correctly and responsively with real-time data, and that displayed values and charts accurately reflect the incoming sensor data.
   - ❌ **Not started.** Verified manually only.
 - **Error handling and logging:** Test various error conditions (e.g., port disconnection, malformed data) to ensure the application handles them gracefully and logs appropriate messages.
