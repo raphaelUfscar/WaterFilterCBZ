@@ -5,6 +5,10 @@ connection workflow — **select port → connect → observe live data → clea
 using [FlaUI](https://github.com/FlaUI/FlaUI) (UIA3) and the bundled Python serial
 simulator feeding frames over a virtual COM pair.
 
+> For the concepts behind these tests — technologies, fundamentals, pros/cons, how to
+> reuse the approach elsewhere, and how it compares to professional UI testing — see
+> [../docs/e2e-ui-testing.md](../docs/e2e-ui-testing.md).
+
 These tests are **local / dedicated-agent only**. They are deliberately excluded from the
 fast CI run (the GitHub workflow tests `WaterFilterCBZ.Tests.csproj` explicitly), because
 they need an interactive desktop session, a virtual COM pair, and Python. When that
@@ -38,7 +42,7 @@ Do not touch the mouse/keyboard while it runs — UI Automation drives the real 
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
-|----------|---------|---------|
+| --- | --- | --- |
 | `WFCBZ_APP_PORT` | `COM3` | Port the **app** connects to (reader end of the pair) |
 | `WFCBZ_SIM_PORT` | `COM11` | Port the **simulator** writes to (writer end of the pair) |
 | `WFCBZ_PYTHON` | `python` | Python launcher (e.g. an absolute path, or `py`) |
