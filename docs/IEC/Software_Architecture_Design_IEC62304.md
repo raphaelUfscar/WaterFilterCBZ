@@ -3,7 +3,7 @@
 Project: WaterFilterCBZ  
 Standard context: IEC 62304 software architectural design  
 Document status: Draft  
-Last updated: 2026-05-12
+Last updated: 2026-06-03
 
 ## Document Purpose
 
@@ -43,7 +43,8 @@ WaterFilterCBZ Application
 |   |-- OxyPlot.Wpf
 |   `-- Serilog file/debug sinks
 `-- Verification
-    `-- WaterFilterCBZ.Tests
+    |-- WaterFilterCBZ.Tests        (unit tests)
+    `-- WaterFilterCBZ.UITests       (end-to-end UI automation tests)
 ```
 
 ### 1.2 Software Systems
@@ -53,7 +54,8 @@ WaterFilterCBZ Application
 | WaterFilterCBZ desktop application | Provides real-time sensor monitoring, connection control, chart display, sensor statistics, and operational logging. | `App.xaml`, `App.xaml.cs`, `MainWindow.xaml`, `MainWindow.xaml.cs` |
 | Sensor data acquisition system | Opens the selected COM port, receives byte chunks, assembles framed packets, validates frame structure and checksum, and emits sensor samples. | `Services/SerialPortService.cs` |
 | Dashboard state and presentation model | Maintains connection state, selected port, available ports, sensor statistics, charts, and commands. | `ViewModels/SensorViewModel.cs` |
-| Verification system | Provides automated unit tests for parser-relevant behavior, commands, data models, and display calculations. | `WaterFilterCBZ.Tests/*` |
+| Verification system (unit) | Provides automated unit tests for parser-relevant behavior, commands, data models, display calculations, and logging. | `WaterFilterCBZ.Tests/*` |
+| Verification system (end-to-end UI) | Drives the shipped application through the full connection workflow (select port, connect, stream, clear, disconnect) using UI Automation, with the Python serial simulator feeding frames over a virtual COM pair. Local/dedicated-agent only; excluded from CI; self-skips when prerequisites are absent. | `WaterFilterCBZ.UITests/*` |
 
 ### 1.3 Subsystems and Software Items
 
@@ -67,7 +69,7 @@ WaterFilterCBZ Application
 | Command abstraction | `RelayCommand`, `RelayCommand<T>` | Implements WPF `ICommand` for UI actions. | Prevents invalid connect/disconnect actions through command predicates. |
 | Serial service interface | `ISerialPortService` | Abstracts serial-service lifecycle for testability and substitution. | Enables verification and future isolation. |
 | Serial service | `SerialPortService` | Handles COM configuration, asynchronous byte ingestion, parser state, frame validation, timestamp decoding, and sample dispatch. | Primary input validation and malformed-frame containment. |
-| Sensor sample model | `SensorSample` | Represents a decoded sensor reading. Includes legacy CSV parser helper. | Carries measurement identity, timestamp, and value. |
+| Sensor sample model | `SensorSample` | Represents a decoded sensor reading (sensor identity, timestamp, value). | Carries measurement identity, timestamp, and value. |
 | Serial port discovery | `SerialPortHelper` | Lists available COM ports and checks port availability. | Reduces incorrect connection selection risk. |
 | Logging | `LoggingService` | Configures debug and rolling file logs using Serilog. | Provides diagnostic evidence for failures and unexpected input. |
 
@@ -105,7 +107,6 @@ Dashboard model
 `-- SensorViewModel.UpdateConnectionStatus()
 
 Domain and display state
-|-- SensorSample.TryParseCsv()
 |-- SensorDisplayInfo.AddValue()
 |-- ViewModelBase.SetProperty()
 `-- ViewModelBase.OnPropertyChanged()
@@ -149,9 +150,10 @@ Microcontroller
 | Interface | Type | Producer | Consumer | Data or command |
 |---|---|---|---|---|
 | WPF data binding | Property binding | `SensorViewModel` | `MainWindow.xaml` | Connection status, status message, sample count, sensor list, available ports, selected port, chart models. |
-| WPF commands | `ICommand` | `SensorViewModel` | Buttons in `MainWindow.xaml` | Clear data, connect, disconnect. |
+| WPF commands | `ICommand` | `SensorViewModel` | Buttons in `MainWindow.xaml` | Clear data, open logs, connect, disconnect. |
 | View model events | .NET `Action` events | `SensorViewModel` | `MainWindow` | Connection request and disconnection request. |
 | Property change notification | `INotifyPropertyChanged` | `ViewModelBase` derivatives | WPF binding engine | Property updates for UI refresh. |
+| Accessibility / automation identity | `AutomationProperties.AutomationId` | `MainWindow.xaml` controls | UI Automation clients (assistive technology, `WaterFilterCBZ.UITests`) | Stable, locale-independent identifiers for status texts, port selector, and command buttons. |
 
 ### 2.2 Service Interfaces
 
@@ -326,22 +328,23 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | AE-UTIL-001 | Serial port discovery | `SerialPortHelper` |
 | AE-LOG-001 | Diagnostic logging | `LoggingService`, Serilog usage |
 | AE-TEST-001 | Automated unit tests | `WaterFilterCBZ.Tests` |
+| AE-TEST-002 | End-to-end UI automation tests | `WaterFilterCBZ.UITests` (FlaUI/UIA3 + Python simulator over a virtual COM pair) |
 
 ### 4.3 Requirement-to-Architecture Traceability
 
 | Software requirement ID | Requirement summary | Architectural element | Unit or component | Verification |
 |---|---|---|---|---|
-| SRS-001 | The software shall enumerate available Windows COM ports. | AE-UTIL-001, AE-VM-001 | `SerialPortHelper.GetAvailablePorts()`, `SensorViewModel.RefreshAvailablePorts()` | Unit/integration test to be added; manual UI verification. |
-| SRS-002 | The software shall allow the user to select and connect to a COM port. | AE-UI-001, AE-VM-001, AE-ACQ-001 | `SelectedPort`, `ConnectCommand`, `MainWindow.InitializeSerialService()`, `SerialPortService.Connect()` | Existing serial failure test; UI integration test to be added. |
+| SRS-001 | The software shall enumerate available Windows COM ports. | AE-UTIL-001, AE-VM-001 | `SerialPortHelper.GetAvailablePorts()`, `SensorViewModel.RefreshAvailablePorts()` | Exercised by the end-to-end UI test port selection (AE-TEST-002); dedicated unit test still recommended. |
+| SRS-002 | The software shall allow the user to select and connect to a COM port. | AE-UI-001, AE-VM-001, AE-ACQ-001 | `SelectedPort`, `ConnectCommand`, `MainWindow.InitializeSerialService()`, `SerialPortService.Connect()` | Existing serial failure test; automated end-to-end UI connect test (AE-TEST-002, `ConnectionWorkflowTests`). |
 | SRS-003 | The software shall receive sensor data using configured serial settings. | AE-ACQ-001 | `SerialPortService.Connect()`, `OnDataReceived()` | Existing baud-rate tests; hardware integration test to be added. |
 | SRS-004 | The software shall accept only well-formed binary frames. | AE-PROTO-001 | `ParseReceiveBuffer()`, `ValidateChecksum()`, `ParseFrame()` | Parser validation tests to be expanded. |
 | SRS-005 | The software shall reject frames with invalid sensor count, checksum, or end byte. | AE-PROTO-001 | `ParseReceiveBuffer()`, `ValidateChecksum()` | Parser rejection tests to be added. |
 | SRS-006 | The software shall decode each valid sensor entry into a sensor sample. | AE-PROTO-001, AE-MODEL-001 | `ParseFrame()`, `DecodeTimestamp()`, `SensorSample` | Existing timestamp decode test. |
-| SRS-007 | The software shall display current sensor value and summary statistics. | AE-VM-001, AE-MODEL-001, AE-UI-001 | `SensorViewModel.AddSample()`, `SensorDisplayInfo.AddValue()` | Existing `SensorDisplayInfo` tests; UI test to be added. |
+| SRS-007 | The software shall display current sensor value and summary statistics. | AE-VM-001, AE-MODEL-001, AE-UI-001 | `SensorViewModel.AddSample()`, `SensorDisplayInfo.AddValue()` | Existing `SensorDisplayInfo` tests; end-to-end UI test asserts sensors register and values display (AE-TEST-002). |
 | SRS-008 | The software shall plot sensor values over time for up to four sensors. | AE-VM-001, AE-UI-001 | `UpdateChartForSensor()`, OxyPlot `PlotModel` bindings | Unit/integration test to be added; manual chart verification. |
-| SRS-009 | The software shall allow the user to clear displayed sensor data. | AE-VM-001, AE-UI-001 | `ClearDataCommand`, `ClearAllData()` | Unit test to be added. |
+| SRS-009 | The software shall allow the user to clear displayed sensor data. | AE-VM-001, AE-UI-001 | `ClearDataCommand`, `ClearAllData()` | End-to-end UI test asserts the clear-data step (AE-TEST-002); dedicated unit test still recommended. |
 | SRS-010 | The software shall log startup, shutdown, connection, parsing, and processing events. | AE-APP-001, AE-LOG-001, AE-ACQ-001, AE-VM-001 | `LoggingService`, Serilog calls | Log file verification test/procedure to be added. |
-| SRS-011 | The software shall disconnect and release serial resources on user request or application close. | AE-UI-001, AE-ACQ-001 | `OnDisconnectRequested()`, `OnClosed()`, `Disconnect()`, `Dispose()` | Existing dispose/disconnect tests; UI lifecycle test to be added. |
+| SRS-011 | The software shall disconnect and release serial resources on user request or application close. | AE-UI-001, AE-ACQ-001 | `OnDisconnectRequested()`, `OnClosed()`, `Disconnect()`, `Dispose()` | Existing dispose/disconnect tests; end-to-end UI test exercises user-initiated disconnect (AE-TEST-002). |
 
 ### 4.4 Risk-Control Traceability
 
@@ -352,7 +355,7 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | HAZ-003 | Data from wrong or incompatible device is displayed. | RC-003 | Verify device identity and protocol version before accepting samples. | SRS-C-002 proposed | AE-PROTO-001, AE-ACQ-001 | Not implemented; compatibility tests required. |
 | HAZ-004 | Application hangs or becomes unresponsive under high-rate input. | RC-004 | Use asynchronous acquisition and throttle chart updates. | SRS-003, SRS-008 | AE-ACQ-001, AE-VM-001 | Performance/stress test required. |
 | HAZ-005 | Malformed serial stream causes memory growth or parser lockup. | RC-005 | Resynchronize parser and time out partial frames; add explicit buffer cap. | SRS-004, SRS-C-003 proposed | AE-PROTO-001 | Partial coverage; malformed-stream stress tests required. |
-| HAZ-006 | User connects to unavailable or incorrect COM port. | RC-006 | Enumerate available ports and show connection status. | SRS-001, SRS-002 | AE-UTIL-001, AE-VM-001, AE-UI-001 | Manual and automated UI tests required. |
+| HAZ-006 | User connects to unavailable or incorrect COM port. | RC-006 | Enumerate available ports and show connection status. | SRS-001, SRS-002 | AE-UTIL-001, AE-VM-001, AE-UI-001 | Automated end-to-end UI test covers port selection and connect/disconnect status (AE-TEST-002); failure-path UI tests (unavailable/busy port) still recommended. |
 | HAZ-007 | Failure cannot be reconstructed after incident. | RC-007 | Record relevant operational events in rolling logs. | SRS-010 | AE-LOG-001 | Log verification procedure required. |
 
 ### 4.5 Detailed Design Traceability
@@ -363,9 +366,8 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | AE-ACQ-001 | `SerialPortService.Disconnect()` and `Dispose()` | Disconnected no-op and repeated dispose behavior. | Disconnect while processing queued data. |
 | AE-PROTO-001 | `SerialPortService.ParseFrame()` | Valid multi-sensor frame timestamp decoding. | Invalid length, invalid count, invalid value encoding, unit handling. |
 | AE-PROTO-001 | `SerialPortService.ParseReceiveBuffer()` | Not directly covered. | Noise before start byte, invalid checksum, invalid end byte, timeout, resync. |
-| AE-VM-001 | `SensorViewModel.AddSample()` | Indirectly through display info tests only. | New sensor registration, sample count, dispatcher behavior, chart assignment. |
+| AE-VM-001 | `SensorViewModel.AddSample()` | Indirectly through display-info tests and the end-to-end UI test (AE-TEST-002). | Dedicated unit tests for new sensor registration, sample count, dispatcher behavior, chart assignment. |
 | AE-MODEL-001 | `SensorDisplayInfo.AddValue()` | Current, min, max, average, count, property change. | Numeric edge cases if required by risk analysis. |
-| AE-MODEL-001 | `SensorSample.TryParseCsv()` | Valid/invalid CSV and invariant decimal parsing. | Confirm whether legacy CSV parser remains in intended design. |
 | AE-VM-001 | `RelayCommand` | Command behavior tests exist. | Command enablement under connection state transitions. |
 | AE-LOG-001 | `LoggingService.ConfigureLogging()` | Not directly covered. | Verify log path creation and minimum event content. |
 
@@ -375,10 +377,11 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 |---|---|
 | `SerialPortServiceTests` | Serial service construction, connection failure, baud rate configuration, port setting, disconnect/dispose behavior, timestamp decoding from valid frames. |
 | `SensorDisplayInfoTests` | Sensor statistics and property-change notification. |
-| `SensorSampleTests` | Legacy CSV parser behavior. |
 | `RelayCommandTests` | Command execution and command enablement behavior. |
-| Proposed integration tests | COM-port lifecycle using test double or loopback, parser malformed-frame behavior, stale-data state, chart update behavior, logging behavior. |
-| Proposed system tests | Hardware-in-the-loop verification with representative firmware, sustained serial input, disconnect/reconnect, malformed-stream injection, operator-visible failure states. |
+| `LoggingServiceTests`, `SensorViewModelOpenLogsTests` | Log directory/configuration and the Open Logs command. |
+| `ConnectionWorkflowTests` (`WaterFilterCBZ.UITests`) | End-to-end UI workflow over a virtual COM pair with the Python simulator: port selection, connect, live-data display, clear data, disconnect. Local/dedicated-agent only; self-skips without the COM pair/Python. |
+| Proposed integration tests | Headless `SerialPortService` ↔ `SensorViewModel` wiring (CI-friendly), parser malformed-frame behavior, stale-data state, logging behavior. Chart-update and COM-port lifecycle are partially covered by `ConnectionWorkflowTests`. |
+| Proposed system tests | Hardware-in-the-loop verification with representative firmware and operator-visible failure states. Simulator-based end-to-end over a virtual COM pair is now automated by `ConnectionWorkflowTests`; sustained-input, disconnect/reconnect, and malformed-stream injection coverage still to be added. |
 
 ## 5. Open Architectural Items
 
@@ -388,7 +391,7 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | OAI-002 | Define intended clinical or operational use of displayed values. | Determines whether stale or incorrect display can contribute to harm. |
 | OAI-003 | Define sensor ranges, units, and plausibility rules. | Needed for safety validation beyond frame integrity. |
 | OAI-004 | Define maximum expected sample rate and communication-loss timeout. | Needed for performance and stale-data requirements. |
-| OAI-005 | Decide whether the legacy CSV parser remains in the product baseline. | Unused code should be justified, removed, or verified. |
+| OAI-005 | Resolved (2026-06-03): the legacy CSV parser (`SensorSample.TryParseCsv()`) and its tests were removed from the baseline. | Unused code should be justified, removed, or verified — removed. |
 | OAI-006 | Add formal protocol versioning and device identity if required by risk management. | Prevents incompatible firmware/software combinations. |
 | OAI-007 | Expand parser tests to cover rejection and resynchronization paths. | Current tests cover selected valid-frame behavior but not all risk controls. |
 
@@ -397,3 +400,4 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 | Revision | Date | Author | Description |
 |---|---|---|---|
 | 0.1 | 2026-05-12 | Codex | Initial draft based on current WaterFilterCBZ repository architecture. |
+| 0.2 | 2026-06-03 | Claude | Synchronized with repository: removed the legacy CSV parser (`SensorSample.TryParseCsv`) references (OAI-005 resolved); added the end-to-end UI verification system (`WaterFilterCBZ.UITests`, AE-TEST-002) and updated requirement/risk/detailed-design traceability accordingly; documented `AutomationProperties.AutomationId` UI identifiers and the Open Logs command. |
