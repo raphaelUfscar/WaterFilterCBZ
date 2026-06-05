@@ -55,7 +55,27 @@ Class C gating note: each remaining risk control in §2 must have positive **and
 - 🔵 **SonarCloud smell** on `SensorViewModel._staleTimer` ("declare as local variable") is a **false positive** — the `DispatcherTimer` must be held in a field or it is garbage-collected and stops ticking. Action: leave as-is, or add a justified suppression with a comment if a clean Sonar report is required.
 - CI runner notice: `windows-latest` redirects to `windows-2025-vs2026` by 2026-06-15; no action needed unless pinning is desired.
 
-## 7. Suggested next steps (order)
+## 7. QMS / process gaps (audit-readiness, beyond the software clauses)
+
+IEC 62304 documents are necessary but **not sufficient** for an official audit (notified body / FDA): they live inside a quality system and a design history file with controlled, reviewed, approved, evidence-backed records. The current set is a strong *scaffold* but the surrounding compliance system is largely absent. These gaps are the dominant blockers to audit-readiness and are tracked here so they are not mistaken for "done". See the [effort report §4](IEC62304_effort_report.md) for the full assessment.
+
+| ID | Gap | Status | Note |
+|---|---|---|---|
+| QMS-001 | No **ISO 13485 quality management system** wrapping these documents | ❌ | IEC 62304 is meaningless to an auditor outside a QMS. Highest-priority structural gap. |
+| QMS-002 | No device-level **ISO 14971 risk management file**; software severities are provisional and intended use is assumed | ❌ | Confirm intended use → real hazard analysis → fix severities (links OAI-002, OAI-003). |
+| QMS-003 | **Document control** is informal (markdown revision tables) — no controlled document IDs, approval signatures, or review records | ❌ | Promote docs from Draft via recorded reviews + approvals by qualified personnel. |
+| QMS-004 | **Verification records** are automated test runs only — no witnessed/approved protocols & results, no independence evidence | ⚠️ | Tie CI evidence to approved protocols; record reviewer ≠ author for safety-relevant changes. |
+| QMS-005 | **Usability engineering file (IEC 62366-1)** not addressed | ❌ | Required for a real submission. |
+| QMS-006 | **Cybersecurity (IEC 81001-5-1 / premarket guidance)** and a formal **SBOM** not addressed | ❌ | Threat model, secure-by-design evidence, SBOM generation. |
+| QMS-007 | **Clinical evaluation / real intended-use statement** by a manufacturer absent | ❌ | Drives classification and severity; currently assumed. |
+| QMS-008 | **SOUP anomaly-monitoring process** not operating (inventory exists, process does not) | ⚠️ | Stand up periodic SOUP anomaly/security review per the maintenance plan. |
+| QMS-009 | Documents are **AI-drafted and unreviewed** by qualified humans | ❌ | Mandatory qualified author/reviewer ownership and sign-off. |
+
+> Rough audit-readiness today ≈ 15–25% even though software-clause *document coverage* ≈ 60–70%. Closing §2 (risk controls) does **not** close these; QMS-001/002/003/009 are the critical path.
+
+## 8. Suggested next steps (order)
+
+Software-engineering track (this repo):
 
 1. **RC-005 buffer cap** — smallest, removes a denial-of-service/HAZ-005 gap.
 2. **Confirm RC-008 ranges + `SENSOR_ID` map** against the real device (§3) — turns the validation from placeholder to real.
@@ -64,9 +84,12 @@ Class C gating note: each remaining risk control in §2 must have positive **and
 5. **RC-011 config protection** + persistent configuration.
 6. Fill the **release record** and promote docs from Draft.
 
-## 8. Revision history
+Compliance track (organizational, prerequisite for any audit): address §7 — start with QMS-001 (ISO 13485), QMS-002 (ISO 14971), QMS-003/009 (document control + qualified review).
+
+## 9. Revision history
 
 | Revision | Date | Author | Description |
 |---|---|---|---|
 | 0.1 | 2026-06-05 | Claude | Initial Class C compliance roadmap: done items, remaining release-gating risk controls, open inputs, documentation/verification gaps, code-quality notes, and ordered next steps. |
 | 0.2 | 2026-06-05 | Claude | De-duplicated: §5 verification gaps now point to the merged [Project Roadmap — Testing](project_roadmap.md#testing) instead of restating the test backlog (single source of truth). |
+| 0.3 | 2026-06-05 | Claude | Added §7 QMS / process gaps (QMS-001..009) capturing the audit-readiness blockers from the [effort report](IEC62304_effort_report.md); split next steps into software vs compliance tracks. |

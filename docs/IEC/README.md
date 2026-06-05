@@ -38,9 +38,9 @@ This folder contains the IEC 62304:2006+AMD1:2015 software lifecycle documentati
 
 The end-to-end chain is **Hazard → Risk Control → Requirement → Architectural Element → Unit → Verification**, maintained primarily in [Architecture Design §4](Software_Architecture_Design_IEC62304.md) and cross-referenced from the Risk Management File and Verification & Test Plan.
 
-## Roadmap
+## Roadmap & assessment
 
-The actionable, gating view of the remaining Class C work (remaining risk controls, open inputs, verification gaps, ordered next steps) is tracked in the [Class C compliance roadmap](../iec62304_class_c_roadmap.md).
+The actionable, gating view of the remaining Class C work (remaining risk controls, open inputs, QMS/process gaps, ordered next steps) is tracked in the [Class C compliance roadmap](../iec62304_class_c_roadmap.md). An honest assessment of how far this set is from an audit-passing package is in the [IEC 62304 effort report](../IEC62304_effort_report.md).
 
 ## Open items to close for the Class C baseline
 
