@@ -13,6 +13,8 @@
     <Window.Resources>
         <!-- Invert Boolean Converter -->
         <local:InvertBoolConverter x:Key="InvertBoolConverter"/>
+        <!-- Stale flag visibility -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
 
     <DockPanel LastChildFill="True">
@@ -153,17 +155,98 @@
                             <DataTemplate>
                                 <Border BorderBrush="#BDC3C7" BorderThickness="0,0,0,1" Padding="10,8">
                                     <StackPanel>
-                                        <!-- Sensor ID -->
-                                        <TextBlock Text="{Binding SensorId, StringFormat='Sensor: {0}'}" 
-                                                  FontWeight="Bold" 
+                                        <!-- Sensor parameter name + id -->
+                                        <TextBlock Text="{Binding DisplayName, StringFormat='Sensor: {0}'}"
+                                                  FontWeight="Bold"
                                                   FontSize="12"
                                                   Foreground="#2C3E50"/>
 
-                                        <!-- Current Value -->
-                                        <TextBlock Text="{Binding CurrentValue, StringFormat='Value: {0:F2}'}" 
+                                        <!-- Current Value (colour reflects validation state; red when stale) -->
+                                        <TextBlock Text="{Binding CurrentValueText, StringFormat='Value: {0}'}"
                                                   FontSize="11"
-                                                  Foreground="#27AE60"
-                                                  Margin="0,3,0,0"/>
+                                                  Margin="0,3,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#27AE60"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ValidationState}" Value="OutOfSpec">
+                                                            <Setter Property="Foreground" Value="#E67E22"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ValidationState}" Value="Invalid">
+                                                            <Setter Property="Foreground" Value="#C0392B"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                                            <Setter Property="Foreground" Value="#E74C3C"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Out-of-spec indicator (RC-008 / SRS-C-003 tier 2): plausible but outside operating range -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorOutOfSpecIndicator"
+                                                  Text="▲ OUT OF SPEC"
+                                                  FontSize="10"
+                                                  FontWeight="Bold"
+                                                  Foreground="#E67E22"
+                                                  Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ValidationState}" Value="OutOfSpec">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Invalid-value indicator (RC-008 / SRS-C-003 tier 1): implausible value rejected, last good value shown -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorInvalidIndicator"
+                                                  Text="⚠ INVALID — value rejected"
+                                                  FontSize="10"
+                                                  FontWeight="Bold"
+                                                  Foreground="#C0392B"
+                                                  Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ValidationState}" Value="Invalid">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Cumulative rejected-sample count (RC-008 / SRS-C-003): shown only once a value has been rejected -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorRejectedCount"
+                                                  Text="{Binding RejectedCount, StringFormat='Rejected: {0}'}"
+                                                  FontSize="9"
+                                                  Foreground="#C0392B"
+                                                  Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding RejectedCount}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Stale-data indicator (RC-002 / SRS-C-001): visible only when no fresh sample for > 5 s -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorStaleIndicator"
+                                                  Text="⚠ STALE — no new data &gt; 5 s"
+                                                  FontSize="10"
+                                                  FontWeight="Bold"
+                                                  Foreground="#E74C3C"
+                                                  Margin="0,2,0,0"
+                                                  Visibility="{Binding IsStale, Converter={StaticResource BoolToVisibility}}"/>
 
                                         <!-- Stats Grid -->
                                         <Grid Margin="0,5,0,0">

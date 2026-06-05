@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Allow the unit test project to exercise internal members (e.g. EvaluateSensorStaleness). -->
+    <InternalsVisibleTo Include="WaterFilterCBZ.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Serial Port Communication -->
     <PackageReference Include="System.IO.Ports" Version="9.0.0" />
     
