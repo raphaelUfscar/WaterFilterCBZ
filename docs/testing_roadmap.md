@@ -2,7 +2,9 @@
 
 This document outlines the planned testing strategy for the WaterFilterCBZ application, focusing on unit, integration, and system-level tests, as identified in the main `README.md`.
 
-**Status legend:** ✅ Done · ⚠️ Partial · ❌ Not started _(last verified against code: 2026-06-03)_
+**Status legend:** ✅ Done · ⚠️ Partial · ❌ Not started _(last verified against code: 2026-06-05)_
+
+> For IEC 62304 Class C verification gaps and remaining risk-control tests, see the [Class C compliance roadmap](iec62304_class_c_roadmap.md).
 
 ## 1. Unit Testing
 
@@ -13,7 +15,7 @@ Focus on testing individual components in isolation.
 - **`SensorSample` CSV parser unit tests:** Create tests to verify the `SensorSample.TryParseCsv()` method (or equivalent binary parsing logic) correctly parses various valid and invalid sensor data formats.
   - ❌ **Obsolete / removed (2026-06-03).** The CSV parser was legacy dead code (the live pipeline uses binary frames) and has been removed along with its tests. Binary frame parsing is covered under the `SerialPortService` item above.
 - **ViewModel MVVM binding tests:** Implement unit tests for `SensorViewModel` to ensure data binding, command execution, property changes, and data processing logic function as expected, independent of the UI.
-  - ⚠️ **Partial.** `SensorDisplayInfoTests` (statistics) and `SensorViewModelOpenLogsTests` (OpenLogs command) exist. Still missing: `AddSample`, `ClearAllData`, `RefreshAvailablePorts`, and `ConnectCommand`/`DisconnectCommand` `CanExecute` logic.
+  - ⚠️ **Partial (expanded 2026-06-05).** Now covered: `SensorDisplayInfoTests` (statistics, staleness, two-tier validation, rejected counter, Min/Max-with-no-readings), `SensorViewModelValidationTests` (`AddSample` null/counting/transitions/unknown sensor, `EvaluateSensorStaleness`, `ClearAllData`), and `SensorViewModelOpenLogsTests`. Still missing: `RefreshAvailablePorts`, and `ConnectCommand`/`DisconnectCommand` `CanExecute` logic. (UI-collection updates remain Dispatcher-gated, so `Sensors`-population assertions need the UI tests.)
 
 ## 2. Integration Testing
 
