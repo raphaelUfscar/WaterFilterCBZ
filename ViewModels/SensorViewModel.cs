@@ -238,7 +238,10 @@ namespace WaterFilterCBZ.ViewModels
                 // Ensure sensor exists in map
                 if (!_sensorMap.TryGetValue(sample.SensorId, out var displayInfo))
                 {
-                    displayInfo = new SensorDisplayInfo(sample.SensorId, StaleThreshold);
+                    displayInfo = new SensorDisplayInfo(
+                        sample.SensorId,
+                        StaleThreshold,
+                        SensorParameterRegistry.ForSensorId(sample.SensorId));
                     _sensorMap[sample.SensorId] = displayInfo;
 
                     // Add to observable collection on UI thread
@@ -247,13 +250,21 @@ namespace WaterFilterCBZ.ViewModels
                         Sensors.Add(displayInfo);
                     });
 
-                    Log.Information("New sensor registered: {SensorId}", sample.SensorId);
+                    Log.Information("New sensor registered: {SensorId} ({Parameter})", sample.SensorId, displayInfo.DisplayName);
                 }
 
-                // Update sensor data
+                // Update sensor data (two-tier validation happens inside AddValue)
+                var previousState = displayInfo.ValidationState;
                 displayInfo.AddValue(sample.Value);
                 displayInfo.LastUpdate = sample.Timestamp;
                 SampleCount++;
+
+                if (displayInfo.ValidationState != previousState)
+                    LogValidationTransition(displayInfo, sample.Value);
+
+                // Do not chart a rejected (implausible) value; it is not a trustworthy measurement.
+                if (displayInfo.ValidationState == SensorValidationState.Invalid)
+                    return;
 
                 // Update the correct chart for this sensor (per-sensor throttled)
                 var now = DateTime.Now;
@@ -271,6 +282,28 @@ namespace WaterFilterCBZ.ViewModels
             catch (Exception ex)
             {
                 Log.Error(ex, "Error processing sensor sample");
+            }
+        }
+
+        private static void LogValidationTransition(SensorDisplayInfo info, double value)
+        {
+            var p = info.Parameter;
+            switch (info.ValidationState)
+            {
+                case SensorValidationState.Invalid:
+                    Log.Warning(
+                        "Sensor {SensorId} ({Name}) value {Value} is implausible and was rejected (physical range {Min}..{Max} {Unit})",
+                        info.SensorId, info.DisplayName, value, p?.PhysicalMin, p?.PhysicalMax, info.Unit);
+                    break;
+                case SensorValidationState.OutOfSpec:
+                    Log.Warning(
+                        "Sensor {SensorId} ({Name}) value {Value} {Unit} is out of operating spec ({Min}..{Max})",
+                        info.SensorId, info.DisplayName, value, info.Unit, p?.OperatingMin, p?.OperatingMax);
+                    break;
+                case SensorValidationState.Normal:
+                    Log.Information(
+                        "Sensor {SensorId} ({Name}) value is back within operating spec", info.SensorId, info.DisplayName);
+                    break;
             }
         }
 
@@ -390,8 +423,19 @@ namespace WaterFilterCBZ.ViewModels
         private DateTime _lastUpdate;
         private bool _isStale;
         private DateTime _lastSampleAtUtc;
+        private SensorValidationState _validationState = SensorValidationState.Normal;
 
         public string SensorId { get; }
+
+        /// <summary>Process-parameter definition (name, unit, ranges); null for an unknown sensor id.</summary>
+        public SensorParameter? Parameter { get; }
+
+        /// <summary>Human-readable label, e.g. "Conductivity (0x01)"; falls back to the raw id.</summary>
+        public string DisplayName => Parameter != null ? $"{Parameter.Name} ({SensorId})" : SensorId;
+
+        /// <summary>Engineering unit for the value, or empty when unknown.</summary>
+        public string Unit => Parameter?.Unit ?? string.Empty;
+
         public DateTime LastUpdate
         {
             get => _lastUpdate;
@@ -399,10 +443,22 @@ namespace WaterFilterCBZ.ViewModels
         }
 
         public double CurrentValue => _currentValue;
+        public string CurrentValueText => string.IsNullOrEmpty(Unit)
+            ? _currentValue.ToString("F2")
+            : $"{_currentValue:F2} {Unit}";
         public double MinValue => _minValue;
         public double MaxValue => _maxValue;
         public double AvgValue => _avgValue;
         public int ReadingCount => _readingCount;
+
+        /// <summary>
+        /// Two-tier validation result for the most recent sample (RC-008 / SRS-C-003).
+        /// </summary>
+        public SensorValidationState ValidationState
+        {
+            get => _validationState;
+            private set => SetProperty(ref _validationState, value);
+        }
 
         /// <summary>
         /// Maximum age of the most recent sample before this sensor is considered stale.
@@ -423,9 +479,10 @@ namespace WaterFilterCBZ.ViewModels
         /// <summary>UTC time at which the most recent sample was received (wall-clock, used for freshness).</summary>
         public DateTime LastSampleAtUtc => _lastSampleAtUtc;
 
-        public SensorDisplayInfo(string sensorId, TimeSpan? staleThreshold = null)
+        public SensorDisplayInfo(string sensorId, TimeSpan? staleThreshold = null, SensorParameter? parameter = null)
         {
             SensorId = sensorId;
+            Parameter = parameter;
             _lastUpdate = DateTime.Now;
             _lastSampleAtUtc = DateTime.UtcNow;
             if (staleThreshold.HasValue)
@@ -434,17 +491,31 @@ namespace WaterFilterCBZ.ViewModels
 
         public void AddValue(double value)
         {
+            // A sample arrived: the link is alive, so clear any stale state regardless of value.
+            _lastSampleAtUtc = DateTime.UtcNow;
+            IsStale = false;
+
+            // Tier 1 (RC-008 / SRS-C-003): physically implausible / corrupt values are rejected.
+            // The last good value and statistics are preserved so the operator is not shown garbage.
+            if (Parameter != null && !Parameter.IsPhysicallyPlausible(value))
+            {
+                ValidationState = SensorValidationState.Invalid;
+                return;
+            }
+
             _currentValue = value;
             _minValue = Math.Min(_minValue, value);
             _maxValue = Math.Max(_maxValue, value);
             _readingCount++;
             _avgValue = (_avgValue * (_readingCount - 1) + value) / _readingCount;
 
-            // A fresh sample arrived: record receipt time and clear any stale state.
-            _lastSampleAtUtc = DateTime.UtcNow;
-            IsStale = false;
+            // Tier 2: plausible but outside the operating specification → flag, still display.
+            ValidationState = (Parameter != null && !Parameter.IsWithinOperatingSpec(value))
+                ? SensorValidationState.OutOfSpec
+                : SensorValidationState.Normal;
 
             OnPropertyChanged(nameof(CurrentValue));
+            OnPropertyChanged(nameof(CurrentValueText));
             OnPropertyChanged(nameof(MinValue));
             OnPropertyChanged(nameof(MaxValue));
             OnPropertyChanged(nameof(AvgValue));

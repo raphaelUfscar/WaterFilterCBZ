@@ -65,7 +65,7 @@ Initial risk is evaluated **before** the software risk control; residual risk **
 | Hazard | Initial S×P=R | Risk control ID | Risk control (software measure) | Requirement | Architectural element | Residual S×P=R | Status |
 |---|:--:|---|---|---|---|:--:|---|
 | HAZ-001 | 4×3=12 | RC-001 | Validate frame structure + checksum before accepting data. | SRS-004, SRS-005 | AE-PROTO-001 | 4×2=8 | Implemented (8-bit additive) |
-| HAZ-001 | 4×3=12 | RC-008 | Per-sensor range/unit plausibility validation; reject/quarantine implausible values. | SRS-C-003 | AE-PROTO-001, AE-VM-001 | 4×1=4 (target) | **Not implemented** |
+| HAZ-001 | 4×3=12 | RC-008 | Per-sensor range/unit plausibility validation; reject/quarantine implausible values. | SRS-C-003 | AE-MODEL-001, AE-VM-001 | 4×1=4 | **Implemented (2026-06-05)**: two-tier validation, reject implausible / flag out-of-spec |
 | HAZ-001 | 4×3=12 | RC-001b | Use CRC instead of additive checksum if analysis requires. | SRS-C-008 | AE-PROTO-001 | — | **Decision pending** |
 | HAZ-002 | 4×3=12 | RC-002 | Detect missing samples / stale timestamps; show explicit stale state + log. | SRS-C-001 | AE-VM-001, AE-ACQ-001 | 4×1=4 | **Implemented (2026-06-05)**: 5 s per-sensor freshness supervision + UI flag + log |
 | HAZ-003 | 4×2=8 | RC-003 | Verify device identity + protocol version before accepting samples. | SRS-C-002 | AE-PROTO-001, AE-ACQ-001 | 4×1=4 (target) | **Not implemented** |
@@ -101,7 +101,8 @@ Each implemented RC must have verification evidence; each pending RC must have a
 | RC-006 | Verified | `ConnectionWorkflowTests` (E2E port select / connect / disconnect). |
 | RC-007 | Partial | `ConnectionWorkflowTests` asserts commands reach the log file; **full event-coverage procedure pending**. |
 | RC-002 | Verified | `SensorDisplayInfoTests` stale-data cases (becomes stale after 5 s, stays fresh within threshold, recovers on new sample, transition `PropertyChanged`). |
-| RC-003, RC-008, RC-009, RC-010, RC-011, RC-001b | Not started | Features not yet implemented; tests to follow implementation. |
+| RC-008 | Verified | `SensorParameterTests` (classification: normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry mapping) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery, stale cleared on rejected sample). |
+| RC-003, RC-009, RC-010, RC-011, RC-001b | Not started | Features not yet implemented; tests to follow implementation. |
 
 ## 7. Risk Management of Software Changes (Clause 7.4)
 
@@ -113,14 +114,14 @@ For each change (defect fix or enhancement), the [Problem Resolution Process](So
 
 ## 8. Residual Risk Summary
 
-RC-002 (stale-data supervision, HAZ-002) is **implemented and verified** as of 2026-06-05. Several Class C risk controls (RC-003, RC-008, RC-004 supervision, RC-005 buffer cap, RC-009, RC-010, RC-011) remain **not yet implemented**. Until they are implemented and verified, the residual risk for HAZ-001, HAZ-003, HAZ-004, and HAZ-005 is **not yet acceptable for a Class C release**. The overall residual-risk acceptability statement and benefit-risk conclusion are made at the device level (ISO 14971) once severities (OAI-002) and acceptance values (OAI-003, OAI-004) are fixed and the controls are verified.
+RC-002 (stale-data supervision, HAZ-002) and RC-008 (two-tier value validation, HAZ-001) are **implemented and verified** as of 2026-06-05. Several Class C risk controls (RC-003, RC-004 supervision, RC-005 buffer cap, RC-009, RC-010, RC-011) remain **not yet implemented**, and RC-001b (CRC) is a pending decision. Until they are implemented and verified, the residual risk for HAZ-003, HAZ-004, and HAZ-005 is **not yet acceptable for a Class C release**; HAZ-001 residual risk also depends on confirming the RC-008 range defaults against the device specification. The overall residual-risk acceptability statement and benefit-risk conclusion are made at the device level (ISO 14971) once severities (OAI-002) and acceptance values (OAI-003, OAI-004) are fixed and the controls are verified.
 
 ## 9. Open Risk Inputs
 
 | ID | Item |
 |---|---|
 | OAI-002 | Resolved (2026-06-05): intended use = pharma/medical purified-water monitoring. Severities still to be confirmed at device level. |
-| OAI-003 | Channel parameters/units defined (conductivity, temperature, pH, pressure/flow); per-sensor numeric ranges/plausibility still open → RC-008 acceptance. |
+| OAI-003 | Resolved (2026-06-05): SENSOR_ID→parameter mapping + default operating/physical ranges implemented (RC-008). Numeric defaults still to be confirmed against the device specification. |
 | OAI-004 | Resolved (2026-06-05): communication-loss timeout = 5 s (RC-002). Max sample rate still open → RC-004 acceptance. |
 | OAI-006 | Protocol versioning / device identity → RC-003 design. |
 
@@ -130,3 +131,4 @@ RC-002 (stale-data supervision, HAZ-002) is **implemented and verified** as of 2
 |---|---|---|---|
 | 0.1 | 2026-06-05 | Claude | Initial software risk management file: 7 software-contributable hazards, risk controls RC-001..011 with implemented/pending status, SOUP risk evaluation, RC verification status, change-risk process, and residual-risk summary. Severities provisional pending OAI-002. |
 | 0.2 | 2026-06-05 | Claude | Intended use confirmed as pharma/medical purified-water monitoring (OAI-002); RC-002 stale-data supervision implemented and verified (residual HAZ-002 = 4); communication-loss timeout fixed at 5 s (OAI-004); RC verification, residual-risk, and open-input sections updated. |
+| 0.3 | 2026-06-05 | Claude | RC-008 two-tier value validation implemented and verified (residual HAZ-001 = 4, subject to confirming range defaults); SENSOR_ID→parameter mapping defined (OAI-003 resolved); RC verification, residual-risk, and open-input sections updated. |

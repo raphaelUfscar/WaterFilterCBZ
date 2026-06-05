@@ -48,7 +48,7 @@ For Class C, verification of safety-relevant units and risk controls should not 
 | `SensorViewModel.AddSample` new-sensor registration, sample count, dispatcher path, chart assignment beyond 4 | SRS-007, SRS-008 | View-model unit tests |
 | Buffer cap drop/reset | SRS-C-004 / RC-005 | Test after feature implemented |
 | Stale-data state transition | SRS-C-001 / RC-002 | **Done** — `SensorDisplayInfoTests` (becomes stale after 5 s, fresh within threshold, recovers on new sample, no-op when unchanged, `IsStale` PropertyChanged) |
-| Range/unit plausibility rejection | SRS-C-003 / RC-008 | Test after feature implemented |
+| Range/unit plausibility rejection | SRS-C-003 / RC-008 | **Done** — `SensorParameterTests` (classify normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry map) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery) |
 | Device/protocol-version rejection | SRS-C-002 / RC-003 | Test after feature implemented |
 | Processing-task failure surfaced | SRS-C-005 / RC-009 | Test after feature implemented |
 
@@ -103,7 +103,8 @@ Per Clause 5.7.3, anomalies found in system testing are entered into the [Proble
 | SRS-016 | T | Timeout unit test pending | Planned |
 | SRS-017 | A,T | Design analysis; stress test pending | Partial |
 | SRS-C-001 | T,D | `SensorDisplayInfoTests` stale-data cases | Verified (5 s, RC-002) |
-| SRS-C-002..C-008 | T/A | After implementation (see §3.2/§5) | Planned |
+| SRS-C-003 | T | `SensorParameterTests`, `SensorDisplayInfoTests` validation cases | Verified (RC-008) |
+| SRS-C-002, C-004..C-008 | T/A | After implementation (see §3.2/§5) | Planned |
 | SRS-C-009 | A,I | Architecture review | Held (constraint) |
 
 ## 7. Verification Environment

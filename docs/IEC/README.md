@@ -14,7 +14,7 @@ This folder contains the IEC 62304:2006+AMD1:2015 software lifecycle documentati
 | 5.1 — Development planning | [Software Development Plan](Software_Development_Plan_IEC62304.md) |
 | 5.2 — Requirements analysis | [Software Requirements Specification](Software_Requirements_Specification_IEC62304.md) |
 | 5.3 — Architectural design | [Software Architecture Design](Software_Architecture_Design_IEC62304.md) |
-| 5.4 — Detailed design | *To be authored* |
+| 5.4 — Detailed design | [Software Detailed Design](Software_Detailed_Design_IEC62304.md) |
 | 5.5–5.7 — Unit/integration/system verification | [Software Verification and Test Plan](Software_Verification_and_Test_Plan_IEC62304.md) |
 | 5.8 — Release | Template in [Development Plan §8](Software_Development_Plan_IEC62304.md) |
 | 6 — Maintenance | [Software Maintenance Plan](Software_Maintenance_Plan_IEC62304.md) |
@@ -42,8 +42,8 @@ The end-to-end chain is **Hazard → Risk Control → Requirement → Architectu
 
 - ✅ **OAI-001** — Software safety class assigned: **C**.
 - ✅ **OAI-002** — Intended use confirmed: pharmaceutical/medical purified-water monitoring (device-level severities still to finalize).
-- 🔶 **OAI-003** — Channel parameters/units defined (conductivity, temperature, pH, pressure/flow); **per-sensor numeric ranges + sensor-ID→parameter mapping still open** (SRS-C-003 / RC-008).
+- ✅ **OAI-003** — SENSOR_ID→parameter mapping + default operating/physical ranges implemented (SRS-C-003 / RC-008). **Numeric defaults still to be confirmed against the device specification.**
 - 🔶 **OAI-004** — Communication-loss timeout fixed at **5 s** (✅ SRS-C-001 / RC-002 implemented); **max sample rate still open** (SRS-NF-001 / RC-004).
 - **OAI-006** — Protocol versioning / device identity (SRS-C-002 / RC-003).
-- Implement and verify remaining risk controls: RC-003, RC-008, RC-009, RC-010, RC-011, buffer cap (RC-005), and decide RC-001b (CRC). **RC-002 done (2026-06-05).**
-- Author the **Detailed Design** (Clause 5.4).
+- Implement and verify remaining risk controls: RC-003, RC-009, RC-010, RC-011, buffer cap (RC-005), and decide RC-001b (CRC). **RC-002 and RC-008 done (2026-06-05).**
+- ✅ Author the **Detailed Design** (Clause 5.4).

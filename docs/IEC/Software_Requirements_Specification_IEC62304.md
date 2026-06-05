@@ -58,13 +58,26 @@ These requirements derive from risk controls in the [Risk Management File](Softw
 |---|---|---|:--:|---|
 | SRS-C-001 | The software shall detect loss of communication or absence of new samples and, when a sensor's most recent update exceeds the configured maximum age (**5 s**, OAI-004), present an explicit **stale** state for that sensor and log the transition. | RC-002 / HAZ-002 | T, D | **Implemented (2026-06-05)** — `SensorDisplayInfo.IsStale`/`EvaluateStaleness`, 1 s `DispatcherTimer`, UI flag |
 | SRS-C-002 | The software shall verify device identity and serial protocol version/schema compatibility before accepting samples, and shall reject and report data from an incompatible source. | RC-003 / HAZ-003 | T | **Not implemented** |
-| SRS-C-003 | The software shall validate each decoded value against a configured per-sensor plausible range and unit, and shall reject or quarantine and visibly flag implausible values rather than displaying them as valid. | RC-008 / HAZ-001 | T | **Not implemented** |
+| SRS-C-003 | The software shall validate each decoded value against the per-parameter physical and operating ranges (fixed SENSOR_ID mapping), rejecting physically-implausible values (keeping the last good value, not charting them) and visibly flagging out-of-spec-but-plausible values, logging each transition. | RC-008 / HAZ-001 | T | **Implemented (2026-06-05)** — `SensorParameter`/`SensorParameterRegistry`, `SensorDisplayInfo.AddValue` two-tier validation |
 | SRS-C-004 | The software shall enforce an explicit maximum receive-buffer length; on exceeding it the software shall drop/reset the buffer and log the event, bounding memory under sustained noisy or malicious input. | RC-005 / HAZ-005 | T | **Not implemented** |
 | SRS-C-005 | The software shall detect failure or termination of the background acquisition/processing task and surface a visible degraded/error state to the operator (and attempt a defined recovery or require explicit reconnect). | RC-009 / HAZ-004 | T | **Not implemented** |
 | SRS-C-006 | The software shall present a defined, verified UI state for each of the following conditions: disconnected, connecting, connected-healthy, stale, invalid-value, parser-error, device-mismatch, and processing-fault. | RC-010 / HAZ-001..005 | T, D | **Partial** (connection states exist; failure taxonomy incomplete) |
 | SRS-C-007 | The software shall protect operational configuration (port, baud rate, per-sensor ranges/units, freshness timeout) with validation on load and an audit record of changes. | RC-011 | T, I | **Not implemented** |
 | SRS-C-008 | Where required by risk analysis, the software shall use an error-detecting code stronger than an 8-bit additive checksum (e.g. CRC) for frame integrity. | RC-001 / HAZ-001 | A, T | **Decision pending** (current: 8-bit additive checksum) |
 | SRS-C-009 | The software shall not perform any therapy, dosing, actuation, or safety-shutoff decision in the presentation layer; any such decision logic, if introduced, shall reside in a separately specified and independently verified software item. | RC-007 | A, I | Held as constraint (no such logic exists) |
+
+### 3.1 Parameter definitions and ranges (SRS-C-003 / OAI-003)
+
+Fixed SENSOR_ID convention and default ranges (pharmaceutical / medical purified water). Values are **documented defaults to be confirmed against the device specification**; they are implemented in `SensorParameterRegistry`.
+
+| SENSOR_ID | Parameter | Unit | Operating spec (flag if outside) | Physical range (reject if outside) |
+|---|---|---|---|---|
+| 0x01 | Conductivity | µS/cm | 0.0 – 1.3 | 0 – 200 |
+| 0x02 | Temperature | °C | 15 – 30 | -10 – 130 |
+| 0x03 | pH | pH | 5.0 – 7.0 | 0 – 14 |
+| 0x04 | Pressure | bar | 1 – 6 | 0 – 16 |
+
+A value that is NaN/infinite or outside the physical range is rejected (last good value retained); a value within the physical range but outside the operating spec is displayed and flagged. An unknown SENSOR_ID is displayed without range validation.
 
 ## 4. Interface Requirements
 
@@ -94,7 +107,7 @@ The frame and sensor-entry layout in §1.2 is the normative input data definitio
 
 - Intended use is **pharmaceutical / medical purified-water quality monitoring**; the four channels are conductivity, temperature, pH, and pressure/flow (OAI-002 resolved 2026-06-05).
 - The microcontroller firmware is outside this repository; the serial frame protocol is the system boundary.
-- The communication-loss timeout is fixed at **5 s** (OAI-004 resolved). Maximum sample rate and per-sensor physical ranges/units remain **open inputs** (OAI-003, OAI-004 rate) required to finalize SRS-C-003 acceptance values and SRS-NF-001.
+- The communication-loss timeout is fixed at **5 s** (OAI-004 resolved). Per-parameter ranges/units are implemented as defaults (§3.1, OAI-003 resolved) **pending confirmation against the device specification**. Maximum sample rate remains an open input (OAI-004 rate) for SRS-NF-001.
 - Classification is Class C (§ Software Safety Classification); all requirements are subject to Class C verification rigor.
 
 ## 7. Requirements Traceability
@@ -106,7 +119,7 @@ Forward and backward traceability (Hazard → Risk Control → Requirement → A
 | ID | Needed to finalize |
 |---|---|
 | OAI-002 | Resolved: pharma/medical purified-water monitoring. Device-level severities still to confirm. |
-| OAI-003 | Per-sensor numeric ranges + sensor-ID→parameter mapping → SRS-C-003 acceptance criteria (units defined: conductivity, temperature, pH, pressure/flow). |
+| OAI-003 | Resolved: mapping + default ranges implemented (§3.1). Numeric defaults to be confirmed against the device specification before release. |
 | OAI-004 | Resolved: communication-loss timeout = 5 s (SRS-C-001). Max sample rate still open → SRS-NF-001. |
 | OAI-006 | Protocol versioning / device identity scheme → SRS-C-002. |
 
@@ -116,3 +129,4 @@ Forward and backward traceability (Hazard → Risk Control → Requirement → A
 |---|---|---|---|
 | 0.1 | 2026-06-05 | Claude | Initial SRS: baseline implemented requirements (SRS-001..017) extracted from current code; Class C risk-control requirements (SRS-C-001..009) derived from the Risk Management File; interface, non-functional, and open-input requirements recorded. |
 | 0.2 | 2026-06-05 | Claude | Recorded intended use (pharma/medical purified water) and fixed 5 s comms-loss timeout (OAI-002/004); SRS-C-001 marked implemented and verified; constraints and open-input tables updated; fixed frame-definition table cell that contained literal pipe characters. |
+| 0.3 | 2026-06-05 | Claude | SRS-C-003 marked implemented (two-tier validation); added §3.1 parameter definitions/ranges table and SENSOR_ID mapping (OAI-003 resolved, defaults pending confirmation); constraints and open-input tables updated. |

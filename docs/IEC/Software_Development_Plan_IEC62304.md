@@ -34,7 +34,7 @@ Plan (5.1)
 | 5.1 | Software Development Plan (this doc) | this file | Draft 0.1 |
 | 5.2 | Software Requirements Specification | [link](Software_Requirements_Specification_IEC62304.md) | Draft 0.1 |
 | 5.3 | Software Architecture Design | [link](Software_Architecture_Design_IEC62304.md) | Draft 0.3 |
-| 5.4 | Software Detailed Design | to be authored | Not started |
+| 5.4 | Software Detailed Design | [link](Software_Detailed_Design_IEC62304.md) | Draft 0.1 |
 | 5.5–5.7 | Verification & Test Plan + results | [link](Software_Verification_and_Test_Plan_IEC62304.md) | Draft 0.1 |
 | 5.8 | Release record / known-anomalies list | §8 of this doc (template) | Template |
 | 6 | Software Maintenance Plan | [link](Software_Maintenance_Plan_IEC62304.md) | Draft 0.1 |

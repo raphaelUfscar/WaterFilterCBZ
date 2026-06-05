@@ -1,3 +1,4 @@
+using WaterFilterCBZ.Models;
 using WaterFilterCBZ.ViewModels;
 
 namespace WaterFilterCBZ.Tests;
@@ -123,5 +124,108 @@ public class SensorDisplayInfoTests
         sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(6));
 
         Assert.Contains(nameof(SensorDisplayInfo.IsStale), changedProperties);
+    }
+
+    // --- Two-tier value validation (RC-008 / SRS-C-003) --------------------------
+
+    private static SensorDisplayInfo PhSensor()
+        => new("0x03", null, SensorParameterRegistry.ForSensorId("0x03")); // operating 5.0–7.0, physical 0–14
+
+    [Fact]
+    public void WithoutParameter_AllValuesAreAcceptedAsNormal()
+    {
+        var sensor = new SensorDisplayInfo("0x99"); // no parameter mapping
+
+        sensor.AddValue(123456);
+
+        Assert.Equal(SensorValidationState.Normal, sensor.ValidationState);
+        Assert.Equal(123456, sensor.CurrentValue);
+    }
+
+    [Fact]
+    public void ValueWithinSpec_IsNormal_AndUpdatesValue()
+    {
+        var sensor = PhSensor();
+
+        sensor.AddValue(6.5);
+
+        Assert.Equal(SensorValidationState.Normal, sensor.ValidationState);
+        Assert.Equal(6.5, sensor.CurrentValue);
+        Assert.Equal(1, sensor.ReadingCount);
+    }
+
+    [Fact]
+    public void PlausibleOutOfSpecValue_IsFlagged_ButStillDisplayed()
+    {
+        var sensor = PhSensor();
+
+        sensor.AddValue(9.0); // within physical 0–14 but above operating 7.0
+
+        Assert.Equal(SensorValidationState.OutOfSpec, sensor.ValidationState);
+        Assert.Equal(9.0, sensor.CurrentValue);
+        Assert.Equal(1, sensor.ReadingCount);
+    }
+
+    [Fact]
+    public void ImplausibleValue_IsRejected_AndLastGoodValueIsKept()
+    {
+        var sensor = PhSensor();
+        sensor.AddValue(6.5); // good
+
+        sensor.AddValue(99.0); // outside physical range → rejected
+
+        Assert.Equal(SensorValidationState.Invalid, sensor.ValidationState);
+        Assert.Equal(6.5, sensor.CurrentValue);   // last good value preserved
+        Assert.Equal(1, sensor.ReadingCount);     // rejected value not counted
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void NonFiniteValue_IsRejected(double bad)
+    {
+        var sensor = PhSensor();
+        sensor.AddValue(6.0);
+
+        sensor.AddValue(bad);
+
+        Assert.Equal(SensorValidationState.Invalid, sensor.ValidationState);
+        Assert.Equal(6.0, sensor.CurrentValue);
+    }
+
+    [Fact]
+    public void RejectedValue_StillClearsStaleState()
+    {
+        var sensor = PhSensor();
+        sensor.AddValue(6.0);
+        sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(10));
+        Assert.True(sensor.IsStale);
+
+        sensor.AddValue(99.0); // implausible, rejected — but a sample did arrive
+
+        Assert.False(sensor.IsStale);
+        Assert.Equal(SensorValidationState.Invalid, sensor.ValidationState);
+    }
+
+    [Fact]
+    public void OutOfSpec_RecoversToNormal_WhenValueReturnsToSpec()
+    {
+        var sensor = PhSensor();
+        sensor.AddValue(9.0);
+        Assert.Equal(SensorValidationState.OutOfSpec, sensor.ValidationState);
+
+        sensor.AddValue(6.0);
+
+        Assert.Equal(SensorValidationState.Normal, sensor.ValidationState);
+    }
+
+    [Fact]
+    public void CurrentValueText_IncludesUnit_WhenParameterKnown()
+    {
+        var sensor = PhSensor();
+        sensor.AddValue(6.0);
+
+        Assert.Contains("pH", sensor.CurrentValueText);
+        Assert.Equal("Conductivity (0x01)", new SensorDisplayInfo("0x01", null, SensorParameterRegistry.ForSensorId("0x01")).DisplayName);
     }
 }
