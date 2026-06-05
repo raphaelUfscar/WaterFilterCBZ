@@ -221,6 +221,24 @@
                                             </TextBlock.Style>
                                         </TextBlock>
 
+                                        <!-- Cumulative rejected-sample count (RC-008 / SRS-C-003): shown only once a value has been rejected -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorRejectedCount"
+                                                  Text="{Binding RejectedCount, StringFormat='Rejected: {0}'}"
+                                                  FontSize="9"
+                                                  Foreground="#C0392B"
+                                                  Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding RejectedCount}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
                                         <!-- Stale-data indicator (RC-002 / SRS-C-001): visible only when no fresh sample for > 5 s -->
                                         <TextBlock AutomationProperties.AutomationId="SensorStaleIndicator"
                                                   Text="⚠ STALE — no new data &gt; 5 s"

@@ -223,6 +223,34 @@ public class SensorDisplayInfoTests
     }
 
     [Fact]
+    public void RejectedCount_IncrementsOnlyForRejectedValues()
+    {
+        var sensor = PhSensor();
+
+        sensor.AddValue(6.5);   // accepted
+        Assert.Equal(0, sensor.RejectedCount);
+
+        sensor.AddValue(99.0);  // rejected
+        sensor.AddValue(50.0);  // rejected
+        Assert.Equal(2, sensor.RejectedCount);
+
+        sensor.AddValue(6.0);   // accepted again — counter is cumulative, not reset
+        Assert.Equal(2, sensor.RejectedCount);
+    }
+
+    [Fact]
+    public void RejectedCount_RaisesPropertyChanged()
+    {
+        var sensor = PhSensor();
+        var changed = new List<string?>();
+        sensor.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        sensor.AddValue(99.0); // rejected
+
+        Assert.Contains(nameof(SensorDisplayInfo.RejectedCount), changed);
+    }
+
+    [Fact]
     public void OutOfSpec_RecoversToNormal_WhenValueReturnsToSpec()
     {
         var sensor = PhSensor();

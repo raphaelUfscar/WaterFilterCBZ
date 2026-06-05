@@ -106,12 +106,12 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 ### 4.5 `SensorDisplayInfo` (AE-VM-001 / AE-MODEL-001)
 
 - **Responsibility:** Per-sensor display state and statistics; freshness; two-tier value validation.
-- **Interface (bindable):** `SensorId`, `Parameter`, `DisplayName`, `Unit`, `CurrentValue`, `CurrentValueText`, `MinValue`, `MaxValue`, `AvgValue`, `ReadingCount`, `LastUpdate`, `IsStale`, `StaleThreshold`, `LastSampleAtUtc`, `ValidationState`.
+- **Interface (bindable):** `SensorId`, `Parameter`, `DisplayName`, `Unit`, `CurrentValue`, `CurrentValueText`, `MinValue`, `MaxValue`, `AvgValue`, `ReadingCount`, `RejectedCount`, `LastUpdate`, `IsStale`, `StaleThreshold`, `LastSampleAtUtc`, `ValidationState`.
 - **Construction:** `(string sensorId, TimeSpan? staleThreshold = null, SensorParameter? parameter = null)`.
 
 **`AddValue(double value)` — algorithm (RC-002, RC-008):**
 1. Record receipt: `_lastSampleAtUtc = DateTime.UtcNow`; `IsStale = false` (a sample arrived → link alive).
-2. **Tier 1:** if `Parameter != null && !Parameter.IsPhysicallyPlausible(value)` → set `ValidationState = Invalid` and **return** (do not update value/stats; last good value retained).
+2. **Tier 1:** if `Parameter != null && !Parameter.IsPhysicallyPlausible(value)` → increment `RejectedCount` (cumulative audit count), set `ValidationState = Invalid` and **return** (do not update value/stats; last good value retained). `MinValue`/`MaxValue` report `0` while `ReadingCount == 0` so the init sentinels never reach the UI.
 3. Update `_currentValue`, min, max, `ReadingCount`, running average.
 4. **Tier 2:** `ValidationState = (Parameter != null && !IsWithinOperatingSpec(value)) ? OutOfSpec : Normal`.
 5. Raise `PropertyChanged` for the derived values + `CurrentValueText`.

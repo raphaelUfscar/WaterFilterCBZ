@@ -292,8 +292,8 @@ namespace WaterFilterCBZ.ViewModels
             {
                 case SensorValidationState.Invalid:
                     Log.Warning(
-                        "Sensor {SensorId} ({Name}) value {Value} is implausible and was rejected (physical range {Min}..{Max} {Unit})",
-                        info.SensorId, info.DisplayName, value, p?.PhysicalMin, p?.PhysicalMax, info.Unit);
+                        "Sensor {SensorId} ({Name}) value {Value} is implausible and was rejected (physical range {Min}..{Max} {Unit}); rejected {RejectedCount} sample(s) total",
+                        info.SensorId, info.DisplayName, value, p?.PhysicalMin, p?.PhysicalMax, info.Unit, info.RejectedCount);
                     break;
                 case SensorValidationState.OutOfSpec:
                     Log.Warning(
@@ -302,7 +302,8 @@ namespace WaterFilterCBZ.ViewModels
                     break;
                 case SensorValidationState.Normal:
                     Log.Information(
-                        "Sensor {SensorId} ({Name}) value is back within operating spec", info.SensorId, info.DisplayName);
+                        "Sensor {SensorId} ({Name}) value is back within operating spec (rejected {RejectedCount} sample(s) total)",
+                        info.SensorId, info.DisplayName, info.RejectedCount);
                     break;
             }
         }
@@ -420,6 +421,7 @@ namespace WaterFilterCBZ.ViewModels
         private double _maxValue = double.MinValue;
         private double _avgValue;
         private int _readingCount;
+        private int _rejectedCount;
         private DateTime _lastUpdate;
         private bool _isStale;
         private DateTime _lastSampleAtUtc;
@@ -453,6 +455,12 @@ namespace WaterFilterCBZ.ViewModels
         public double MaxValue => _readingCount == 0 ? 0.0 : _maxValue;
         public double AvgValue => _avgValue;
         public int ReadingCount => _readingCount;
+
+        /// <summary>
+        /// Cumulative number of samples rejected for this sensor as physically implausible
+        /// (RC-008 / SRS-C-003). Provides an audit trail without logging every rejected sample.
+        /// </summary>
+        public int RejectedCount => _rejectedCount;
 
         /// <summary>
         /// Two-tier validation result for the most recent sample (RC-008 / SRS-C-003).
@@ -502,6 +510,8 @@ namespace WaterFilterCBZ.ViewModels
             // The last good value and statistics are preserved so the operator is not shown garbage.
             if (Parameter != null && !Parameter.IsPhysicallyPlausible(value))
             {
+                _rejectedCount++;
+                OnPropertyChanged(nameof(RejectedCount));
                 ValidationState = SensorValidationState.Invalid;
                 return;
             }
