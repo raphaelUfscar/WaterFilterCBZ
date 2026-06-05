@@ -44,12 +44,11 @@ Until these are implemented **and verified**, residual risk for HAZ-001/003/004/
 - ⚠️ All IEC docs are **Draft**; promote to Reviewed/Approved once the device-level inputs (§3) are fixed.
 - ⚠️ **Segregation rationale** — no validated segregation between safety and non-safety items yet, so the whole system is Class C; revisit if down-classification of charting/cosmetic items is desired ([Architecture §3](IEC/Software_Architecture_Design_IEC62304.md)).
 
-## 5. Verification gaps (cross-ref: [testing roadmap](testing_roadmap.md))
+## 5. Verification gaps
 
-- ⚠️ Parser rejection/resync **unit** tests (invalid count/checksum/end-byte, noise-before-start, timeout) — still recommended (SRS-004/005/016).
-- ❌ Headless `SerialPortService` ↔ `SensorViewModel` integration test (CI-friendly, no UI).
-- ❌ Sustained-rate / stress system test (needs OAI-004 rate); malformed-stream injection assertions.
-- New risk-control features above each require positive + negative tests before their RC can be marked Verified.
+The test backlog and status (parser rejection/resync unit tests, headless `SerialPortService` ↔ `SensorViewModel` integration test, sustained-rate/stress and malformed-stream system tests) is owned by the [Project Roadmap — Testing](project_roadmap.md#testing). It is not restated here.
+
+Class C gating note: each remaining risk control in §2 must have positive **and** negative tests before its RC can be marked **Verified** in the [Risk Management File](IEC/Software_Risk_Management_IEC62304.md).
 
 ## 6. Code quality / tooling notes
 
@@ -70,3 +69,4 @@ Until these are implemented **and verified**, residual risk for HAZ-001/003/004/
 | Revision | Date | Author | Description |
 |---|---|---|---|
 | 0.1 | 2026-06-05 | Claude | Initial Class C compliance roadmap: done items, remaining release-gating risk controls, open inputs, documentation/verification gaps, code-quality notes, and ordered next steps. |
+| 0.2 | 2026-06-05 | Claude | De-duplicated: §5 verification gaps now point to the merged [Project Roadmap — Testing](project_roadmap.md#testing) instead of restating the test backlog (single source of truth). |
