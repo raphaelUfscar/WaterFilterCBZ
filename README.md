@@ -2,6 +2,16 @@
 
 WaterFilterCBZ is a WPF desktop dashboard for monitoring sensor readings from a microcontroller over USB serial communication. It discovers available COM ports, connects to the selected port, parses framed binary sensor packets, and displays live values and charts for up to four sensors.
 
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [Project Roadmap](docs/project_roadmap.md) | Planned features/improvements and testing status. |
+| [IEC 62304 documentation set](docs/IEC/README.md) | Medical-device software lifecycle docs (safety class **C**). |
+| [Class C compliance roadmap](docs/iec62304_class_c_roadmap.md) | Remaining safety risk controls and release gating. |
+| [CI & Coverage](docs/ci_and_coverage.md) | Pipelines, local coverage generation, SonarQube troubleshooting. |
+| [UI test setup](WaterFilterCBZ.UITests/README.md) | Running the end-to-end UI tests (virtual COM pair + Python). |
+
 ## Project Structure
 
 ```text
@@ -212,34 +222,7 @@ Run simulator frame encoding tests:
 python -m unittest discover -s tools -p "test_*.py"
 ```
 
-Run simulator tests with Python coverage:
-
-```powershell
-python -m pip install -r tools/requirements-simulator.txt
-python -m coverage run --source=tools --omit="tools/test_*.py" -m unittest discover -s tools -p "test_*.py"
-python -m coverage xml -o tools/coverage.xml
-```
-
-Generate OpenCover coverage locally:
-
-```powershell
-dotnet test WaterFilterCBZ.Tests/WaterFilterCBZ.Tests.csproj --configuration Release --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-```
-
-Coverage reports are generated under:
-
-```text
-WaterFilterCBZ.Tests/TestResults/<run-id>/coverage.opencover.xml
-```
-
-## Continuous Integration
-
-The repository includes:
-
-- `.github/workflows/dotnet-desktop.yml` for restore, build, test, publish, and artifact upload.
-- `.github/workflows/sonarqube.yml` for SonarQube analysis with C# OpenCover and Python Coverage.py imports.
-
-The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that both `coverage.opencover.xml` and `tools/coverage.xml` were generated before ending analysis.
+For CI pipelines, local coverage generation, and SonarQube troubleshooting, see [CI & Coverage](docs/ci_and_coverage.md).
 
 ## Troubleshooting
 
@@ -261,14 +244,8 @@ The SonarQube workflow passes `SONAR_TOKEN` through environment variables and ve
 - Check logs for invalid count, checksum, or end-byte warnings.
 - Verify that no more than four distinct sensors are expected in the dashboard.
 
-### SonarQube shows 0.0% coverage
-
-- Confirm the workflow generated `coverage.opencover.xml`.
-- Confirm `sonar.cs.opencover.reportsPaths` points to `**/TestResults/**/coverage.opencover.xml`.
-- Confirm the workflow generated `tools/coverage.xml` for the Python simulator.
-- Confirm `sonar.python.coverage.reportPaths` points to `tools/coverage.xml`.
-- Check the `Verify coverage reports` workflow step output.
+_(CI/coverage issues such as SonarQube reporting 0.0% coverage are covered in [CI & Coverage](docs/ci_and_coverage.md).)_
 
 ## Current Status
 
-The app is ready for integration with firmware that emits the framed binary protocol described above. Unit tests cover the core model, command, sensor display, and serial service behavior.
+The app is ready for integration with firmware that emits the framed binary protocol described above, and is being developed against IEC 62304 software safety **Class C** (see the [IEC documentation set](docs/IEC/README.md)). For current feature, test, and compliance status, see the [Project Roadmap](docs/project_roadmap.md) and [Class C compliance roadmap](docs/iec62304_class_c_roadmap.md).
