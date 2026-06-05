@@ -132,6 +132,21 @@ public class SensorDisplayInfoTests
         => new("0x03", null, SensorParameterRegistry.ForSensorId("0x03")); // operating 5.0–7.0, physical 0–14
 
     [Fact]
+    public void NoAcceptedReadings_ReportsZeroMinMax_NotSentinels()
+    {
+        // A brand-new sensor, and one whose only sample was rejected, must not leak
+        // the double.MaxValue/double.MinValue initialization sentinels to the UI.
+        var fresh = new SensorDisplayInfo("0x03", null, SensorParameterRegistry.ForSensorId("0x03"));
+        Assert.Equal(0.0, fresh.MinValue);
+        Assert.Equal(0.0, fresh.MaxValue);
+
+        fresh.AddValue(99.0); // outside physical range → rejected, ReadingCount stays 0
+        Assert.Equal(0, fresh.ReadingCount);
+        Assert.Equal(0.0, fresh.MinValue);
+        Assert.Equal(0.0, fresh.MaxValue);
+    }
+
+    [Fact]
     public void WithoutParameter_AllValuesAreAcceptedAsNormal()
     {
         var sensor = new SensorDisplayInfo("0x99"); // no parameter mapping

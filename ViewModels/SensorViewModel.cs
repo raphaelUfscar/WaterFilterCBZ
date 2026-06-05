@@ -446,8 +446,11 @@ namespace WaterFilterCBZ.ViewModels
         public string CurrentValueText => string.IsNullOrEmpty(Unit)
             ? _currentValue.ToString("F2")
             : $"{_currentValue:F2} {Unit}";
-        public double MinValue => _minValue;
-        public double MaxValue => _maxValue;
+        // Until at least one value is accepted, the running min/max still hold their
+        // initialization sentinels (double.MaxValue / double.MinValue); report 0 instead
+        // so the UI never shows those sentinels (e.g. when every sample is rejected).
+        public double MinValue => _readingCount == 0 ? 0.0 : _minValue;
+        public double MaxValue => _readingCount == 0 ? 0.0 : _maxValue;
         public double AvgValue => _avgValue;
         public int ReadingCount => _readingCount;
 
