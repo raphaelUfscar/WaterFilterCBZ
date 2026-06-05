@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using System.Windows.Threading;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
@@ -23,6 +24,10 @@ namespace WaterFilterCBZ.ViewModels
         private int _sampleCount;
         private readonly Dictionary<string, DateTime> _lastPlotUpdateBySensor = new();
         private const int PLOT_UPDATE_THRESHOLD_MS = 50; // per-sensor throttle
+
+        // Stale-data supervision (RC-002 / SRS-C-001). Communication-loss timeout is 5 s (OAI-004).
+        private static readonly TimeSpan StaleThreshold = TimeSpan.FromSeconds(5);
+        private readonly DispatcherTimer? _staleTimer;
 
         private string _connectionStatus = "Disconnected";
         private string _statusMessage = "Ready";
@@ -86,6 +91,41 @@ namespace WaterFilterCBZ.ViewModels
             DisconnectCommand = new RelayCommand(OnDisconnect, CanDisconnect);
             InitializeCharts();
             RefreshAvailablePorts();
+
+            // Periodically re-evaluate sensor freshness so loss of communication becomes
+            // visible to the operator even though no new sample arrives to trigger an update.
+            if (App.Current?.Dispatcher != null)
+            {
+                _staleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                _staleTimer.Tick += (_, _) => EvaluateSensorStaleness();
+                _staleTimer.Start();
+            }
+        }
+
+        /// <summary>
+        /// Re-evaluates the stale state of every active sensor and logs each transition.
+        /// Runs on the UI thread via <see cref="_staleTimer"/>; exposed internally for testing.
+        /// </summary>
+        internal void EvaluateSensorStaleness()
+        {
+            var now = DateTime.UtcNow;
+            foreach (var sensor in Sensors)
+            {
+                if (!sensor.EvaluateStaleness(now))
+                    continue;
+
+                if (sensor.IsStale)
+                {
+                    Log.Warning(
+                        "Sensor {SensorId} data is stale: no new sample for more than {Seconds}s",
+                        sensor.SensorId,
+                        sensor.StaleThreshold.TotalSeconds);
+                }
+                else
+                {
+                    Log.Information("Sensor {SensorId} data is fresh again", sensor.SensorId);
+                }
+            }
         }
 
         /// <summary>
@@ -198,7 +238,7 @@ namespace WaterFilterCBZ.ViewModels
                 // Ensure sensor exists in map
                 if (!_sensorMap.TryGetValue(sample.SensorId, out var displayInfo))
                 {
-                    displayInfo = new SensorDisplayInfo(sample.SensorId);
+                    displayInfo = new SensorDisplayInfo(sample.SensorId, StaleThreshold);
                     _sensorMap[sample.SensorId] = displayInfo;
 
                     // Add to observable collection on UI thread
@@ -348,6 +388,8 @@ namespace WaterFilterCBZ.ViewModels
         private double _avgValue;
         private int _readingCount;
         private DateTime _lastUpdate;
+        private bool _isStale;
+        private DateTime _lastSampleAtUtc;
 
         public string SensorId { get; }
         public DateTime LastUpdate
@@ -362,10 +404,32 @@ namespace WaterFilterCBZ.ViewModels
         public double AvgValue => _avgValue;
         public int ReadingCount => _readingCount;
 
-        public SensorDisplayInfo(string sensorId)
+        /// <summary>
+        /// Maximum age of the most recent sample before this sensor is considered stale.
+        /// Risk control RC-002 / requirement SRS-C-001. Default 5 s (OAI-004).
+        /// </summary>
+        public TimeSpan StaleThreshold { get; set; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// True when no new sample has arrived within <see cref="StaleThreshold"/>.
+        /// Surfaced to the operator so a stale reading is not mistaken for a live one.
+        /// </summary>
+        public bool IsStale
+        {
+            get => _isStale;
+            private set => SetProperty(ref _isStale, value);
+        }
+
+        /// <summary>UTC time at which the most recent sample was received (wall-clock, used for freshness).</summary>
+        public DateTime LastSampleAtUtc => _lastSampleAtUtc;
+
+        public SensorDisplayInfo(string sensorId, TimeSpan? staleThreshold = null)
         {
             SensorId = sensorId;
             _lastUpdate = DateTime.Now;
+            _lastSampleAtUtc = DateTime.UtcNow;
+            if (staleThreshold.HasValue)
+                StaleThreshold = staleThreshold.Value;
         }
 
         public void AddValue(double value)
@@ -376,11 +440,29 @@ namespace WaterFilterCBZ.ViewModels
             _readingCount++;
             _avgValue = (_avgValue * (_readingCount - 1) + value) / _readingCount;
 
+            // A fresh sample arrived: record receipt time and clear any stale state.
+            _lastSampleAtUtc = DateTime.UtcNow;
+            IsStale = false;
+
             OnPropertyChanged(nameof(CurrentValue));
             OnPropertyChanged(nameof(MinValue));
             OnPropertyChanged(nameof(MaxValue));
             OnPropertyChanged(nameof(AvgValue));
             OnPropertyChanged(nameof(ReadingCount));
+        }
+
+        /// <summary>
+        /// Re-evaluates the stale state against the supplied UTC time. A sensor with no
+        /// readings is never stale. Returns true when the stale state changed (for logging).
+        /// </summary>
+        public bool EvaluateStaleness(DateTime utcNow)
+        {
+            bool shouldBeStale = _readingCount > 0 && (utcNow - _lastSampleAtUtc) > StaleThreshold;
+            if (shouldBeStale == IsStale)
+                return false;
+
+            IsStale = shouldBeStale;
+            return true;
         }
     }
 }

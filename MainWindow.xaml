@@ -13,6 +13,8 @@
     <Window.Resources>
         <!-- Invert Boolean Converter -->
         <local:InvertBoolConverter x:Key="InvertBoolConverter"/>
+        <!-- Stale flag visibility -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
 
     <DockPanel LastChildFill="True">
@@ -159,11 +161,30 @@
                                                   FontSize="12"
                                                   Foreground="#2C3E50"/>
 
-                                        <!-- Current Value -->
-                                        <TextBlock Text="{Binding CurrentValue, StringFormat='Value: {0:F2}'}" 
+                                        <!-- Current Value (turns red when the reading is stale) -->
+                                        <TextBlock Text="{Binding CurrentValue, StringFormat='Value: {0:F2}'}"
                                                   FontSize="11"
-                                                  Foreground="#27AE60"
-                                                  Margin="0,3,0,0"/>
+                                                  Margin="0,3,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#27AE60"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsStale}" Value="True">
+                                                            <Setter Property="Foreground" Value="#E74C3C"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Stale-data indicator (RC-002 / SRS-C-001): visible only when no fresh sample for > 5 s -->
+                                        <TextBlock AutomationProperties.AutomationId="SensorStaleIndicator"
+                                                  Text="⚠ STALE — no new data &gt; 5 s"
+                                                  FontSize="10"
+                                                  FontWeight="Bold"
+                                                  Foreground="#E74C3C"
+                                                  Margin="0,2,0,0"
+                                                  Visibility="{Binding IsStale, Converter={StaticResource BoolToVisibility}}"/>
 
                                         <!-- Stats Grid -->
                                         <Grid Margin="0,5,0,0">

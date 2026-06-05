@@ -1,13 +1,16 @@
 # Software Architectural Design Document
 
 Project: WaterFilterCBZ  
-Standard context: IEC 62304 software architectural design  
+Standard context: IEC 62304 software architectural design (Clause 5.3)  
+Software safety class: C (see [Software Safety Classification](Software_Safety_Classification_IEC62304.md))  
 Document status: Draft  
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Document Purpose
 
 This document describes the software architecture of WaterFilterCBZ for IEC 62304 design control purposes. It identifies the high-level software decomposition, interfaces between software items, architectural safety segregation, and traceability links from hazards and risk controls to requirements, architecture, units, and verification.
+
+This document is part of the IEC 62304 documentation set (see [docs/IEC/README.md](README.md)): [Safety Classification](Software_Safety_Classification_IEC62304.md), [Software Requirements Specification](Software_Requirements_Specification_IEC62304.md), [Risk Management File](Software_Risk_Management_IEC62304.md), [Development Plan](Software_Development_Plan_IEC62304.md), [Configuration Management Plan](Software_Configuration_Management_Plan_IEC62304.md), [Problem Resolution Process](Software_Problem_Resolution_Process_IEC62304.md), [Maintenance Plan](Software_Maintenance_Plan_IEC62304.md), and [Verification & Test Plan](Software_Verification_and_Test_Plan_IEC62304.md).
 
 WaterFilterCBZ is a Windows WPF desktop application that monitors up to four sensor channels received from a microcontroller through USB serial communication. The current application is a monitoring and visualization system. If the software is used to make or support medical-device safety decisions, the safety classification, risk controls, verification depth, and segregation evidence must be completed according to the final intended use.
 
@@ -235,9 +238,9 @@ For the complete medical-device system architecture, the following firmware-side
 
 ### 3.1 Safety Context
 
-The current software provides monitoring, visualization, and logging of sensor values. The final IEC 62304 software safety class must be assigned from the device risk management file based on the intended medical use and whether incorrect, delayed, or missing displayed values can contribute to hazardous situations.
+The software provides monitoring, visualization, and logging of sensor values. The software system has been assigned **IEC 62304 software safety class C** (death or serious injury possible); see the [Software Safety Classification](Software_Safety_Classification_IEC62304.md) for the intended-use basis and rationale. As Class C, the architecture must provide strong evidence that safety-critical behavior is isolated, validated, supervised, and verified.
 
-If classified as Class C, the architecture must provide strong evidence that safety-critical behavior is isolated, validated, supervised, and verified. The table below separates implemented architectural controls from controls that should be completed or formally justified for a Class C submission.
+No validated segregation between safety-relevant items (acquisition, frame validation, freshness/validity logic) and non-safety items (charting, cosmetic UI) is yet demonstrated, so the **entire software system inherits Class C**. The table below separates implemented architectural controls from controls that must be completed or formally justified for the Class C baseline.
 
 ### 3.2 Implemented Segregation and Risk-Reduction Controls
 
@@ -254,6 +257,7 @@ If classified as Class C, the architecture must provide strong evidence that saf
 | UI thread marshaling | `Dispatcher.Invoke()` and `Dispatcher.BeginInvoke()` | Reduces concurrency faults in UI-bound data structures. |
 | Chart point retention limit | Maximum 300 points per sensor series. | Reduces unbounded chart memory growth during long monitoring sessions. |
 | Connection lifecycle cleanup | `Disconnect()`, `Dispose()`, `MainWindow.OnClosed()` | Reduces stale serial connection and resource leak risks. |
+| Stale-data supervision | `SensorDisplayInfo.EvaluateStaleness()`, `SensorViewModel` 1 s `DispatcherTimer`; per-sensor `IsStale` (5 s threshold) shown in UI and logged on transition. | Prevents an operator from relying on a value after communication silently stops (RC-002 / HAZ-002 / SRS-C-001). |
 | Operational logging | `LoggingService` and Serilog calls throughout services and view model. | Supports diagnosis of connection, parsing, and processing failures. |
 
 ### 3.3 Required or Recommended Class C Hardening Items
@@ -262,7 +266,7 @@ The following items are not fully implemented in the current repository and shou
 
 | Safety need | Recommended architectural control | Current status |
 |---|---|---|
-| Prevent undetected communication loss | Add heartbeat or maximum sample age supervision per sensor, with visible stale-data state and alarm/event logging. | Not currently implemented. |
+| Prevent undetected communication loss | Add heartbeat or maximum sample age supervision per sensor, with visible stale-data state and alarm/event logging. | **Implemented (2026-06-05):** per-sensor 5 s max-age supervision (`SensorDisplayInfo.EvaluateStaleness`, `SensorViewModel` 1 s timer); visible `IsStale` UI flag + transition logging (RC-002 / SRS-C-001). |
 | Avoid accepting physically implausible values | Add sensor-specific range validation, unit validation, and invalid-value rejection or quarantine. | Not currently implemented. |
 | Prevent display of data from incompatible firmware | Add protocol version, device identity, and frame schema compatibility checks. | Not currently implemented. |
 | Strengthen corruption detection | Replace 8-bit additive checksum with CRC if required by risk analysis. | Current checksum is simple additive validation. |
@@ -387,10 +391,10 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 
 | ID | Item | Rationale |
 |---|---|---|
-| OAI-001 | Confirm IEC 62304 software safety class. | Determines required rigor, independence, and architectural risk controls. |
-| OAI-002 | Define intended clinical or operational use of displayed values. | Determines whether stale or incorrect display can contribute to harm. |
-| OAI-003 | Define sensor ranges, units, and plausibility rules. | Needed for safety validation beyond frame integrity. |
-| OAI-004 | Define maximum expected sample rate and communication-loss timeout. | Needed for performance and stale-data requirements. |
+| OAI-001 | Resolved (2026-06-05): software system assigned **Class C** in the [Software Safety Classification](Software_Safety_Classification_IEC62304.md). | Determines required rigor, independence, and architectural risk controls. |
+| OAI-002 | Resolved (2026-06-05): intended use is **pharmaceutical / medical purified-water quality monitoring**; channels are conductivity, temperature, pH, and pressure/flow. Recorded in [Software Safety Classification](Software_Safety_Classification_IEC62304.md). | Determines whether stale or incorrect display can contribute to harm. |
+| OAI-003 | Partially resolved (2026-06-05): channel parameters and units defined (conductivity, temperature, pH, pressure/flow); **per-sensor numeric plausibility ranges and the sensor-ID→parameter mapping remain open** (needed for SRS-C-003 / RC-008). | Needed for safety validation beyond frame integrity. |
+| OAI-004 | Resolved (2026-06-05): communication-loss / stale-data timeout = **5 s**, implemented in stale-data supervision (RC-002 / SRS-C-001). Maximum sustained sample rate still to be quantified for SRS-NF-001. | Needed for performance and stale-data requirements. |
 | OAI-005 | Resolved (2026-06-03): the legacy CSV parser (`SensorSample.TryParseCsv()`) and its tests were removed from the baseline. | Unused code should be justified, removed, or verified — removed. |
 | OAI-006 | Add formal protocol versioning and device identity if required by risk management. | Prevents incompatible firmware/software combinations. |
 | OAI-007 | Expand parser tests to cover rejection and resynchronization paths. | Current tests cover selected valid-frame behavior but not all risk controls. |
@@ -401,3 +405,5 @@ Traceability identifiers in this draft are proposed identifiers. They should be 
 |---|---|---|---|
 | 0.1 | 2026-05-12 | Codex | Initial draft based on current WaterFilterCBZ repository architecture. |
 | 0.2 | 2026-06-03 | Claude | Synchronized with repository: removed the legacy CSV parser (`SensorSample.TryParseCsv`) references (OAI-005 resolved); added the end-to-end UI verification system (`WaterFilterCBZ.UITests`, AE-TEST-002) and updated requirement/risk/detailed-design traceability accordingly; documented `AutomationProperties.AutomationId` UI identifiers and the Open Logs command. |
+| 0.3 | 2026-06-05 | Claude | Assigned software safety **Class C** (OAI-001 resolved); updated safety context and segregation note; linked the new IEC 62304 documentation set (classification, SRS, risk management, SDP, SCM, problem resolution, maintenance, verification & test). |
+| 0.4 | 2026-06-05 | Claude | Recorded intended use = pharmaceutical/medical purified-water monitoring (OAI-002 resolved); fixed 5 s stale-data timeout (OAI-004 resolved); implemented stale-data supervision (RC-002 / SRS-C-001) — added to implemented controls (§3.2) and §3.3; OAI-003 partially resolved (channel parameters/units defined, numeric ranges still open). |

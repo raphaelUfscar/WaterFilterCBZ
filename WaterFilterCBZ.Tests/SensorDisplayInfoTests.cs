@@ -49,4 +49,79 @@ public class SensorDisplayInfoTests
         Assert.Equal(timestamp, sensor.LastUpdate);
         Assert.Equal(nameof(SensorDisplayInfo.LastUpdate), changedProperty);
     }
+
+    // --- Stale-data detection (RC-002 / SRS-C-001) -------------------------------
+
+    [Fact]
+    public void NewSensorWithNoReadings_IsNotStale()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+
+        // Even far in the future, a sensor that never produced a reading is not "stale".
+        bool changed = sensor.EvaluateStaleness(DateTime.UtcNow.AddMinutes(10));
+
+        Assert.False(changed);
+        Assert.False(sensor.IsStale);
+    }
+
+    [Fact]
+    public void Sensor_BecomesStale_AfterThresholdWithNoNewSample()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+        sensor.AddValue(10);
+
+        bool changed = sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(6));
+
+        Assert.True(changed);
+        Assert.True(sensor.IsStale);
+    }
+
+    [Fact]
+    public void Sensor_StaysFresh_WithinThreshold()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+        sensor.AddValue(10);
+
+        bool changed = sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(4));
+
+        Assert.False(changed);
+        Assert.False(sensor.IsStale);
+    }
+
+    [Fact]
+    public void StaleSensor_RecoversToFresh_WhenNewSampleArrives()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+        sensor.AddValue(10);
+        sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(6));
+        Assert.True(sensor.IsStale);
+
+        sensor.AddValue(11);
+
+        Assert.False(sensor.IsStale);
+    }
+
+    [Fact]
+    public void EvaluateStaleness_ReturnsFalse_WhenStateUnchanged()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+        sensor.AddValue(10);
+
+        var staleTime = sensor.LastSampleAtUtc.AddSeconds(6);
+        Assert.True(sensor.EvaluateStaleness(staleTime));   // transitions to stale
+        Assert.False(sensor.EvaluateStaleness(staleTime));  // already stale: no change
+    }
+
+    [Fact]
+    public void BecomingStale_RaisesPropertyChangedForIsStale()
+    {
+        var sensor = new SensorDisplayInfo("0x01", TimeSpan.FromSeconds(5));
+        sensor.AddValue(10);
+        var changedProperties = new List<string?>();
+        sensor.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        sensor.EvaluateStaleness(sensor.LastSampleAtUtc.AddSeconds(6));
+
+        Assert.Contains(nameof(SensorDisplayInfo.IsStale), changedProperties);
+    }
 }
