@@ -249,6 +249,9 @@ coverage*.info
 *.coverage
 *.coveragexml
 
+# JUnit-format test logs emitted by JunitXml.TestLogger (for the Jenkins junit step)
+*.junit.xml
+
 # NCrunch
 _NCrunch_*
 .NCrunch_*
