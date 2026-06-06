@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Code-coverage settings for the XPlat Code Coverage collector.
+
+  Excludes code that cannot be exercised by unit tests, so the coverage metric
+  reflects genuinely testable logic (IEC 62304 Class C traceability):
+
+    * GeneratedCodeAttribute            : XAML / compiler-generated code such as
+                                          XamlGeneratedNamespace.GeneratedInternalTypeHelper
+                                          and InitializeComponent partials.
+    * ExcludeFromCodeCoverageAttribute  : WPF code-behind (App, MainWindow), which is
+                                          exercised by the end-to-end UITests rather than
+                                          unit tests.
+
+  CompilerGeneratedAttribute is deliberately NOT excluded: async state machines and
+  lambdas carry it, and their coverage maps to real, tested source methods.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

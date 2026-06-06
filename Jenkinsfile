@@ -49,7 +49,7 @@ pipeline {
                 // cannot parse VSTest .trx natively); .trx is kept for archiving
                 // and traceability. Coverage is collected only from the unit
                 // test project, which carries coverlet.collector.
-                bat 'dotnet test "%TEST_PROJECT%" -c %CONFIGURATION% --no-build --no-restore --results-directory %RESULTS_DIR% --collect:"XPlat Code Coverage" --logger "junit;LogFilePath=test-results.junit.xml" --logger "trx;LogFileName=test-results.trx"'
+                bat 'dotnet test "%TEST_PROJECT%" -c %CONFIGURATION% --no-build --no-restore --results-directory %RESULTS_DIR% --collect:"XPlat Code Coverage" --settings coverlet.runsettings --logger "junit;LogFilePath=test-results.junit.xml" --logger "trx;LogFileName=test-results.trx"'
             }
         }
 

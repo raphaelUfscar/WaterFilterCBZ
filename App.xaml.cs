@@ -1,5 +1,6 @@
 ﻿using System.Configuration;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using WaterFilterCBZ.Services;
 using Serilog;
@@ -9,6 +10,9 @@ namespace WaterFilterCBZ
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
+    // Application bootstrap / composition root: no unit-testable logic.
+    // Excluded from unit-test coverage (IEC 62304 traceability).
+    [ExcludeFromCodeCoverage]
     public partial class App : Application
     {
         protected override void OnStartup(StartupEventArgs e)

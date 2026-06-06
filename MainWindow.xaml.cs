@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Windows;
 using WaterFilterCBZ.ViewModels;
 using WaterFilterCBZ.Services;
 using Serilog;
@@ -8,6 +9,9 @@ namespace WaterFilterCBZ
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
+    // WPF code-behind: UI wiring exercised by the end-to-end UITests, not unit tests.
+    // Excluded from unit-test coverage to keep the metric meaningful (IEC 62304 traceability).
+    [ExcludeFromCodeCoverage]
     public partial class MainWindow : Window
     {
         private readonly SensorViewModel _viewModel;

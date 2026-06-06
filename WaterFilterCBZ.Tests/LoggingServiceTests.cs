@@ -42,4 +42,17 @@ public class LoggingServiceTests
 
         Assert.True(Directory.Exists(LoggingService.LogDirectory));
     }
+
+    [Fact]
+    public void ConfigureLogging_CreatesLogDirectoryAndInstallsLogger()
+    {
+        LoggingService.ConfigureLogging();
+
+        Assert.True(Directory.Exists(LoggingService.LogDirectory));
+        // The global logger is now configured; writing through it must not throw.
+        var ex = Record.Exception(() => Serilog.Log.Information("logging-service-test"));
+        Assert.Null(ex);
+
+        LoggingService.CloseAndFlush();
+    }
 }

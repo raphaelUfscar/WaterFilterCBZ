@@ -48,9 +48,56 @@ public class RelayCommandTests
     }
 
     [Fact]
+    public void GenericCanExecute_WithoutPredicate_ReturnsTrue()
+    {
+        var command = new RelayCommand<string>(_ => { });
+
+        Assert.True(command.CanExecute("COM4"));
+    }
+
+    [Fact]
+    public void GenericCanExecute_UsesPredicateWithTypedParameter()
+    {
+        var command = new RelayCommand<string>(_ => { }, value => value == "COM4");
+
+        Assert.True(command.CanExecute("COM4"));
+        Assert.False(command.CanExecute("COM1"));
+    }
+
+    [Fact]
     public void Constructor_WithNullAction_Throws()
     {
         Assert.Throws<ArgumentNullException>(() => new RelayCommand(null!));
         Assert.Throws<ArgumentNullException>(() => new RelayCommand<string>(null!));
+    }
+
+    [Fact]
+    public void CanExecuteChanged_SubscribeAndUnsubscribe_DoesNotThrow()
+    {
+        var command = new RelayCommand(() => { });
+        EventHandler handler = (_, _) => { };
+
+        var ex = Record.Exception(() =>
+        {
+            command.CanExecuteChanged += handler;
+            command.CanExecuteChanged -= handler;
+        });
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void GenericCanExecuteChanged_SubscribeAndUnsubscribe_DoesNotThrow()
+    {
+        var command = new RelayCommand<string>(_ => { });
+        EventHandler handler = (_, _) => { };
+
+        var ex = Record.Exception(() =>
+        {
+            command.CanExecuteChanged += handler;
+            command.CanExecuteChanged -= handler;
+        });
+
+        Assert.Null(ex);
     }
 }
