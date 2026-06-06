@@ -72,7 +72,9 @@ pipeline {
                     Write-Host "Line coverage: $pct% (target $env:MIN_COVERAGE%)"
 
                     if ($pct -lt [double]$env:MIN_COVERAGE) {
-                        "Line coverage $pct% is below target $env:MIN_COVERAGE%" | Out-File coverage-unstable.flag
+                        # ASCII (BOM-free) so Groovy readFile gets a clean string;
+                        # Windows PowerShell's default Out-File is UTF-16 LE + BOM.
+                        "Line coverage $pct% is below target $env:MIN_COVERAGE%" | Out-File -Encoding ascii coverage-unstable.flag
                     }
                 '''
 
