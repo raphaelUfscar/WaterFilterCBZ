@@ -61,6 +61,14 @@ WaterFilterCBZ/
 
 The app reads binary frames from the selected COM port at `115200` baud by default. `SerialPortService.BaudRate` can be configured before connecting.
 
+`SerialPortService` also includes connection recovery for long-running monitoring sessions:
+
+- Auto-reconnect is enabled by default after a successful manual connect.
+- Serial driver errors, read failures, parser task failures, and heartbeat timeouts schedule reconnect attempts.
+- A manual Disconnect stops reconnect attempts.
+- The heartbeat monitor treats incoming serial data as liveness. By default it checks every 2 seconds and reconnects if no data is received for 10 seconds.
+- `HeartbeatInterval`, `HeartbeatTimeout`, `ReconnectDelay`, and `AutoReconnectEnabled` can be adjusted before connecting.
+
 Serial settings:
 
 | Setting | Value |
