@@ -8,11 +8,12 @@ Contributor/CI reference for WaterFilterCBZ: the pipelines, how to generate cove
 |---|---|
 | `.github/workflows/dotnet-desktop.yml` | Restore, build, test, publish, and upload a runnable build artifact (Windows runner). |
 | `.github/workflows/sonarqube.yml` | SonarQube/SonarCloud analysis importing C# (OpenCover) and Python (Coverage.py) coverage. |
-| `Jenkinsfile` | Alternative pipeline (restore/build/test + Cobertura coverage) on a `dotnet10` agent. |
+| `Jenkinsfile` | Fast pipeline (restore/build/unit-test + Cobertura coverage gate) on a `dotnet10` agent. |
+| `Jenkinsfile.uitests` | Dedicated end-to-end UI pipeline (`WaterFilterCBZ.UITests`) on the interactive agent. |
 
 The SonarQube workflow passes `SONAR_TOKEN` through environment variables and verifies that both `coverage.opencover.xml` and `tools/coverage.xml` were generated before ending analysis.
 
-The unit test project (`WaterFilterCBZ.Tests`) runs in CI. The end-to-end UI tests (`WaterFilterCBZ.UITests`) are **excluded** from the fast CI run and self-skip when their prerequisites (a virtual COM pair + Python) are absent — see [WaterFilterCBZ.UITests/README.md](../WaterFilterCBZ.UITests/README.md).
+The unit test project (`WaterFilterCBZ.Tests`) runs in the fast CI pipelines. The end-to-end UI tests (`WaterFilterCBZ.UITests`) are **excluded** from the fast run and instead have their own `Jenkinsfile.uitests` pipeline on an interactive agent; they self-skip when their prerequisites (a virtual COM pair + Python) are absent — see [WaterFilterCBZ.UITests/README.md](../WaterFilterCBZ.UITests/README.md).
 
 ## Generate coverage locally
 

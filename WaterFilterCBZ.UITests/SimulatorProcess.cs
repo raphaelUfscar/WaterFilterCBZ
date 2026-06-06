@@ -8,7 +8,7 @@ namespace WaterFilterCBZ.UITests;
 /// writer side of the virtual COM pair and shuts it down on dispose, so a test owns
 /// its data source for its lifetime.
 /// </summary>
-internal sealed class SimulatorProcess : IDisposable
+public sealed class SimulatorProcess : IDisposable
 {
     private readonly Process _process;
     private readonly List<string> _output = new();
@@ -24,9 +24,21 @@ internal sealed class SimulatorProcess : IDisposable
 
     /// <summary>
     /// Start the simulator emitting <paramref name="sensors"/> sensors at <paramref name="rateHz"/> Hz
-    /// on <paramref name="port"/>. Throws if the process exits immediately (e.g. the port is busy).
+    /// on <paramref name="port"/>. Optionally drive an alarm <paramref name="scenario"/>
+    /// (normal/out-of-spec/invalid/stale), restrict it to one <paramref name="targetSensor"/>, pick a
+    /// signal <paramref name="profile"/>, or periodically inject malformed frames via
+    /// <paramref name="injectErrors"/>. Throws if the process exits immediately (e.g. the port is busy).
     /// </summary>
-    public static SimulatorProcess Start(string python, string scriptPath, string port, int sensors = 4, int rateHz = 10)
+    public static SimulatorProcess Start(
+        string python,
+        string scriptPath,
+        string port,
+        int sensors = 4,
+        int rateHz = 10,
+        string? scenario = null,
+        int? targetSensor = null,
+        string? profile = null,
+        string? injectErrors = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -44,6 +56,30 @@ internal sealed class SimulatorProcess : IDisposable
         psi.ArgumentList.Add(sensors.ToString());
         psi.ArgumentList.Add("--rate-hz");
         psi.ArgumentList.Add(rateHz.ToString());
+
+        if (scenario is not null)
+        {
+            psi.ArgumentList.Add("--scenario");
+            psi.ArgumentList.Add(scenario);
+        }
+
+        if (targetSensor is not null)
+        {
+            psi.ArgumentList.Add("--target-sensor");
+            psi.ArgumentList.Add(targetSensor.Value.ToString());
+        }
+
+        if (profile is not null)
+        {
+            psi.ArgumentList.Add("--profile");
+            psi.ArgumentList.Add(profile);
+        }
+
+        if (injectErrors is not null)
+        {
+            psi.ArgumentList.Add("--inject-errors");
+            psi.ArgumentList.Add(injectErrors);
+        }
 
         var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         var sim = new SimulatorProcess(process);

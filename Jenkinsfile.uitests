@@ -1,0 +1,99 @@
+// Dedicated pipeline for the end-to-end UI Automation tests (WaterFilterCBZ.UITests).
+//
+// These are deliberately kept OUT of the fast build pipeline (Jenkinsfile): they drive the
+// real WPF window with FlaUI, so they need an *interactive* desktop session, a virtual COM
+// pair, and Python + pyserial feeding the bundled simulator. Configure this as its own Jenkins
+// job (e.g. nightly or manually triggered) pinned to the interactive agent.
+//
+// Agent prerequisites (windows-build-agent):
+//   * Launched in an interactive user session (NOT as a session-0 Windows service), or FlaUI
+//     cannot drive the UI.
+//   * A virtual COM pair COM3 <-> COM11 (VSPE), matching the env vars below.
+//   * Python on PATH with pyserial (the Setup stage installs it from requirements-simulator.txt).
+// When any of these is missing the tests self-skip (see TestEnvironment.GetSkipReason) rather
+// than failing, so a misconfigured agent yields skipped — not red — results.
+pipeline {
+    agent { label 'dotnet10' }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        // UI tests are slow and run serially (one app owns the COM port at a time).
+        timeout(time: 30, unit: 'MINUTES')
+        // Never run two UI jobs at once: they would fight over the COM pair and the desktop.
+        disableConcurrentBuilds()
+    }
+
+    // Optional: uncomment to run nightly.
+    // triggers { cron('H 2 * * *') }
+
+    environment {
+        CONFIGURATION = 'Release'
+        UITEST_PROJECT = 'WaterFilterCBZ.UITests\\WaterFilterCBZ.UITests.csproj'
+        RESULTS_DIR    = 'TestResults-UI'
+        // The two ends of the VSPE virtual pair on the agent (see TestEnvironment defaults).
+        WFCBZ_APP_PORT = 'COM3'
+        WFCBZ_SIM_PORT = 'COM11'
+        WFCBZ_PYTHON   = 'python'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Restore') {
+            steps {
+                bat 'dotnet restore'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                // Build the whole solution so the app exe exists for the UI tests to launch
+                // (TestEnvironment.ResolveAppExe finds the newest WaterFilterCBZ.exe under bin/).
+                bat 'dotnet build -c %CONFIGURATION% --no-restore'
+            }
+        }
+
+        stage('Setup simulator deps') {
+            steps {
+                // Idempotent: installs pyserial for the bundled Python simulator. Best-effort so
+                // an already-provisioned (possibly offline) agent is not blocked by pip.
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    bat '%WFCBZ_PYTHON% -m pip install -r tools\\requirements-simulator.txt'
+                }
+            }
+        }
+
+        stage('UI Tests') {
+            steps {
+                bat 'if exist %RESULTS_DIR% rmdir /s /q %RESULTS_DIR%'
+
+                // Run the end-to-end UI tests. No coverage is collected (these are behavioural
+                // e2e tests). JUnit XML is emitted for the junit step; .trx is kept for archiving.
+                // Tests self-skip when the interactive environment is unavailable.
+                bat 'dotnet test "%UITEST_PROJECT%" -c %CONFIGURATION% --no-build --no-restore --results-directory %RESULTS_DIR% --logger "junit;LogFilePath=uitest-results.junit.xml" --logger "trx;LogFileName=uitest-results.trx"'
+            }
+        }
+    }
+
+    post {
+        always {
+            // Record UI test results (JUnit XML; the project writes it next to its .csproj).
+            junit testResults: '**/uitest-results.junit.xml', allowEmptyResults: true
+
+            // Archive the raw result files for later inspection.
+            archiveArtifacts artifacts: "${RESULTS_DIR}/**", fingerprint: true, allowEmptyArchive: true
+        }
+
+        failure {
+            echo 'UI tests FAILED!'
+        }
+
+        success {
+            echo 'UI tests SUCCEEDED (or self-skipped when the environment was unavailable).'
+        }
+    }
+}

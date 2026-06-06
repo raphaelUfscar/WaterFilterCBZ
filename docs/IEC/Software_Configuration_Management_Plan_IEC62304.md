@@ -21,7 +21,7 @@ Class C requires that SOUP configuration items also be uniquely identified (8.1.
 |---|---|---|
 | Source code | All `.cs`, `.xaml`, `.slnx`, `.csproj` | Git commit SHA + release tag |
 | Documentation | `docs/IEC/*.md`, `README.md`, `docs/*.md` | Git history + per-doc revision table |
-| Build/CI config | `.github/workflows/*.yml`, `Jenkinsfile` | Git |
+| Build/CI config | `.github/workflows/*.yml`, `Jenkinsfile`, `Jenkinsfile.uitests`, `coverlet.runsettings` | Git |
 | Test assets | `WaterFilterCBZ.Tests/*`, `WaterFilterCBZ.UITests/*`, `tools/*.py` | Git |
 | SOUP / dependencies | NuGet packages (see §3), .NET SDK, Python simulator deps | Pinned versions in `.csproj` / `requirements-simulator.txt` / CI `dotnet-version` |
 | Release artifacts | Published build output | GitHub Actions artifact `WaterFilterCBZ-publish-<run>` |
