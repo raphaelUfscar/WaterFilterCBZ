@@ -89,8 +89,8 @@ Verify the interaction between components — `SerialPortService` ↔ `SensorVie
 Test the complete application as a whole, often involving actual hardware.
 
 - **End-to-end communication with a microcontroller:** Conduct tests with a physical microcontroller sending data to the application to validate the entire data pipeline from serial reception to UI display.
-  - ⚠️ **Partially automated.** `WaterFilterCBZ.UITests` exercises the full pipeline (simulator → serial → parse → ViewModel → UI) end-to-end over a virtual COM pair without hardware. Validation against a _physical_ microcontroller is still manual.
+  - ⚠️ **Partially automated.** `WaterFilterCBZ.UITests` exercises the full pipeline (simulator → serial → parse → ViewModel → UI) end-to-end over a virtual COM pair without hardware — both the operator workflow (`ConnectionWorkflowTests`) and the safety alarms (`AlarmWorkflowTests`: out-of-spec, invalid/rejected, stale, frame-corruption resilience). Validation against a _physical_ microcontroller is still manual.
 - **UI responsiveness and data accuracy:** Verify that the UI updates correctly and responsively with real-time data, and that displayed values and charts accurately reflect the incoming sensor data.
   - ❌ **Not started.** Verified manually only.
 - **Error handling and logging:** Test various error conditions (e.g., port disconnection, malformed data) to ensure the application handles them gracefully and logs appropriate messages.
-  - ⚠️ **Partially enabled.** The simulator's `--inject-errors` modes (checksum, end-byte, count, partial, noise) can trigger parser resync and warning logs on demand, but there is no automated assertion on the outcomes.
+  - ✅ **Automated.** The simulator's `--inject-errors` modes (checksum, end-byte, count, partial, noise) drive malformed frames, and the simulator's `--scenario` modes drive value-level alarms (out-of-spec, invalid, stale). Outcomes are asserted both at unit level (`SerialPortServiceFramingTests`: resync + rejection paths) and end-to-end (`AlarmWorkflowTests`: alarm indicators + audit-log entries; corruption resilience).

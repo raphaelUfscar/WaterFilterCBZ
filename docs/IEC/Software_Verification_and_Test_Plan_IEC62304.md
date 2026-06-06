@@ -16,7 +16,7 @@ This plan defines how WaterFilterCBZ is verified at the unit, integration, and s
 |---|---|---|---|
 | Unit | 5.5 | xUnit unit tests with acceptance criteria | `WaterFilterCBZ.Tests` (CI) |
 | Integration | 5.6 | Component-wiring tests + simulator-driven parser/serial tests | Proposed CI-friendly integration tests + Python simulator |
-| System / E2E | 5.7 | Full UI workflow over a virtual COM pair | `WaterFilterCBZ.UITests` (`ConnectionWorkflowTests`, local/dedicated agent) |
+| System / E2E | 5.7 | Full UI workflow + alarm scenarios over a virtual COM pair | `WaterFilterCBZ.UITests` (`ConnectionWorkflowTests`, `AlarmWorkflowTests`; local/dedicated agent) |
 | Static analysis | — | SonarQube quality gate + coverage | `.github/workflows/sonarqube.yml` |
 
 Verification methods used in requirement tables: `T` test, `A` analysis, `I` inspection/review, `D` demonstration.
@@ -61,7 +61,7 @@ A unit passes when: all its tests pass in CI; the behavior matches the detailed 
 | Integration concern | Test | Status |
 |---|---|---|
 | `SerialPortService` → `SensorViewModel` sample wiring (headless, CI-friendly) | Proposed integration test feeding frames to the sample callback and asserting view-model state | Proposed |
-| Parser behavior under malformed stream | Python simulator `--inject-errors {checksum,end-byte,count,partial,noise}` driving the parser; assert resync + warning logs | Partially available via simulator |
+| Parser behavior under malformed stream | Python simulator `--inject-errors {checksum,end-byte,count,partial,noise}` driving the parser; assert resync + warning logs | E2E assertion available — `AlarmWorkflowTests.CorruptedFrameInjection_KeepsStreamingValidSamples` (stays connected, keeps decoding valid frames, no false INVALID alarm) |
 | Logging integration | Assert safety-relevant events reach the rolling log file | Partial (E2E asserts command logging) |
 | Chart/COM lifecycle | Covered partially by `ConnectionWorkflowTests` | Partial |
 
@@ -74,8 +74,10 @@ Integration test runs include a **regression** of previously passing integration
 | Full operator workflow: enumerate → select → connect → live data → open logs → clear → disconnect, with command logging | `ConnectionWorkflowTests` (FlaUI/UIA3 + Python simulator over virtual COM pair) | Implemented (local/dedicated agent; self-skips without prerequisites; excluded from CI) |
 | Sustained high-rate input (responsiveness) | Proposed stress system test | Proposed (needs OAI-004 rate) |
 | Disconnect/reconnect cycling | Proposed | Proposed |
-| Malformed-stream injection during live monitoring | Proposed (simulator error modes) | Proposed |
-| Stale-data presentation | Proposed (after SRS-C-001) | Blocked on feature |
+| Malformed-stream injection during live monitoring | `AlarmWorkflowTests.CorruptedFrameInjection_KeepsStreamingValidSamples` (simulator `--inject-errors checksum`) | Implemented (local/dedicated agent) |
+| Stale-data presentation (RC-002) | `AlarmWorkflowTests.StaleScenario_RaisesStaleIndicatorAfterFeedGoesSilentAndLogsIt` (simulator `--scenario stale`) | Implemented (local/dedicated agent) |
+| Out-of-spec presentation (RC-008 tier 2) | `AlarmWorkflowTests.OutOfSpecScenario_RaisesOutOfSpecIndicatorAndLogsIt` (simulator `--scenario out-of-spec`) | Implemented (local/dedicated agent) |
+| Invalid/rejected presentation (RC-008 tier 1) | `AlarmWorkflowTests.InvalidScenario_RaisesInvalidIndicatorIncrementsRejectedAndLogsIt` (simulator `--scenario invalid`) | Implemented (local/dedicated agent) |
 | Failure-state taxonomy presentation | Proposed (after SRS-C-006) | Blocked on feature |
 | Hardware-in-the-loop with representative firmware | Proposed | Proposed |
 
@@ -102,8 +104,8 @@ Per Clause 5.7.3, anomalies found in system testing are entered into the [Proble
 | SRS-015 | T | `SerialPortServiceTests` (timestamp) | Verified |
 | SRS-016 | T | Timeout unit test pending | Planned |
 | SRS-017 | A,T | Design analysis; stress test pending | Partial |
-| SRS-C-001 | T,D | `SensorDisplayInfoTests` stale-data cases | Verified (5 s, RC-002) |
-| SRS-C-003 | T | `SensorParameterTests`, `SensorDisplayInfoTests` validation cases | Verified (RC-008) |
+| SRS-C-001 | T,D | `SensorDisplayInfoTests` stale-data cases; E2E `AlarmWorkflowTests.StaleScenario_...` | Verified (5 s, RC-002) |
+| SRS-C-003 | T,D | `SensorParameterTests`, `SensorDisplayInfoTests` validation cases; E2E `AlarmWorkflowTests` out-of-spec/invalid scenarios | Verified (RC-008) |
 | SRS-C-002, C-004..C-008 | T/A | After implementation (see §3.2/§5) | Planned |
 | SRS-C-009 | A,I | Architecture review | Held (constraint) |
 
@@ -113,7 +115,7 @@ Per Clause 5.7.3, anomalies found in system testing are entered into the [Proble
 |---|---|
 | Build/test runner | Windows runner, .NET 10 SDK (`10.0.x`) |
 | Unit/CI | GitHub Actions `dotnet-desktop.yml`; SonarQube `sonarqube.yml`; Jenkins `Jenkinsfile` (coverage) |
-| E2E | Local/dedicated agent with virtual COM pair + Python simulator (`tools/sensor_simulator.py`) |
+| E2E | Jenkins `Jenkinsfile.uitests` on an interactive agent with virtual COM pair + Python simulator (`tools/sensor_simulator.py`, alarm `--scenario` modes) |
 | Coverage | coverlet → OpenCover (C#), Coverage.py (Python) → SonarQube |
 
 ## 8. Entry / Exit Criteria for Release Verification
