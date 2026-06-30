@@ -1,0 +1,16 @@
+// Sensor range overrides (RC-008 / SRS-C-003).
+// Copy this file to %AppData%\WaterFilterCBZ\sensor-ranges.json, or point the
+// WATERFILTERCBZ_SENSOR_RANGES environment variable at it.
+//
+// Every bound is optional: omit one to keep the built-in default for that bound.
+// Known sensor ids: 0x01 conductivity, 0x02 temperature, 0x03 pH, 0x04 pressure.
+// Unknown ids are ignored. A merged definition must satisfy
+//   physicalMin <= operatingMin <= operatingMax <= physicalMax   (all finite),
+// otherwise the override for that sensor is rejected and the default kept
+// (the reason is written to the application log).
+{
+  "0x01": { "operatingMin": 0.0, "operatingMax": 1.3, "physicalMin": 0.0, "physicalMax": 200.0 },
+  "0x02": { "operatingMin": 15.0, "operatingMax": 30.0, "physicalMin": -10.0, "physicalMax": 130.0 },
+  "0x03": { "operatingMin": 5.0, "operatingMax": 7.0, "physicalMin": 0.0, "physicalMax": 14.0 },
+  "0x04": { "operatingMin": 1.0, "operatingMax": 6.0, "physicalMin": 0.0, "physicalMax": 16.0 }
+}

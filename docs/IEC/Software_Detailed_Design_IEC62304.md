@@ -28,6 +28,8 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 | `SensorViewModel` | `ViewModels/SensorViewModel.cs` | AE-VM-001 |
 | `SensorDisplayInfo` | `ViewModels/SensorViewModel.cs` | AE-VM-001, AE-MODEL-001 |
 | `SensorParameter`, `SensorParameterRegistry`, `SensorValidationState` | `Models/SensorParameter.cs` | AE-MODEL-001 |
+| `SensorRangeOverride` | `Models/SensorRangeOverride.cs` | AE-MODEL-001 |
+| `SensorRangeConfigLoader` | `Services/SensorRangeConfigLoader.cs` | AE-MODEL-001 |
 | `SensorSample` | `Models/SensorSample.cs` | AE-MODEL-001 |
 | `SerialPortService` / `ISerialPortService` | `Services/SerialPortService.cs` | AE-ACQ-001, AE-PROTO-001 |
 | `SerialPortHelper` | `Utils/SerialPortHelper.cs` | AE-UTIL-001 |
@@ -138,7 +140,9 @@ Conventions: types and members are named exactly as in source. "UI thread" means
   | 0x03 | pH | pH | 5.0–7.0 | 0–14 |
   | 0x04 | Pressure | bar | 1–6 | 0–16 |
 
-  `ForSensorId(id)` returns the definition or `null` (unknown id → displayed without range validation). Ranges are **defaults pending confirmation** against the device spec (OAI-003).
+  `ForSensorId(id)` returns the active definition or `null` (unknown id → displayed without range validation). The table above are the **built-in defaults** (pending confirmation against the device spec, OAI-003); `DefaultForSensorId(id)` always returns them regardless of overrides.
+  - **`Configure(overrides)`** (user-configurable ranges, RC-008): merges per-id `SensorRangeOverride` bounds over the defaults — each null bound keeps the default — then validates the merged result (`physicalMin ≤ operatingMin ≤ operatingMax ≤ physicalMax`, all finite). A failing override is rejected and logged, keeping the default; overrides for unknown ids are ignored and logged; `Configure(null)` / `ResetToDefaults()` restores defaults. Guarded by a lock; `ForSensorId` reads an immutable snapshot.
+- **`SensorRangeConfigLoader`** (`Services/`): loads overrides from JSON (`sensor-ranges.json`; default `%AppData%\WaterFilterCBZ\`, overridable via `WATERFILTERCBZ_SENSOR_RANGES`). Missing/empty/malformed → empty map (logged), so a bad edit can never silently widen thresholds. Applied once at `App.OnStartup` via `SensorParameterRegistry.Configure`. Config-file **integrity protection is RC-011 (pending)**.
 - **Traceability:** SRS-C-003 / RC-008.
 
 ### 4.7 `SensorSample` (AE-MODEL-001)
