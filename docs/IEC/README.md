@@ -46,7 +46,7 @@ The actionable, gating view of the remaining Class C work (remaining risk contro
 
 - ✅ **OAI-001** — Software safety class assigned: **C**.
 - ✅ **OAI-002** — Intended use confirmed: pharmaceutical/medical purified-water monitoring (device-level severities still to finalize).
-- ✅ **OAI-003** — SENSOR_ID→parameter mapping + default operating/physical ranges implemented (SRS-C-003 / RC-008). **Numeric defaults still to be confirmed against the device specification.**
+- ✅ **OAI-003** — SENSOR_ID→parameter mapping + default operating/physical ranges implemented (SRS-C-003 / RC-008); ranges are user-configurable via `sensor-ranges.json` with per-field fallback to defaults. **Numeric defaults still to be confirmed against the device specification; config-file integrity protection is RC-011 (pending).**
 - 🔶 **OAI-004** — Communication-loss timeout fixed at **5 s** (✅ SRS-C-001 / RC-002 implemented); **max sample rate still open** (SRS-NF-001 / RC-004).
 - **OAI-006** — Protocol versioning / device identity (SRS-C-002 / RC-003).
 - Implement and verify remaining risk controls: RC-003, RC-010, RC-011, and decide RC-001b (CRC). **RC-002 and RC-008 done (2026-06-05); RC-005 buffer cap and RC-009 task-failure surfacing done (2026-06-30).**

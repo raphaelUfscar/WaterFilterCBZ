@@ -101,7 +101,7 @@ Each implemented RC must have verification evidence; each pending RC must have a
 | RC-006 | Verified | `ConnectionWorkflowTests` (E2E port select / connect / disconnect). |
 | RC-007 | Partial | `ConnectionWorkflowTests` asserts commands reach the log file; **full event-coverage procedure pending**. |
 | RC-002 | Verified | `SensorDisplayInfoTests` stale-data cases (becomes stale after 5 s, stays fresh within threshold, recovers on new sample, transition `PropertyChanged`). |
-| RC-008 | Verified | `SensorParameterTests` (classification: normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry mapping) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery, stale cleared on rejected sample). |
+| RC-008 | Verified | `SensorParameterTests` (classification: normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry mapping) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery, stale cleared on rejected sample) + `SensorParameterRegistryConfigTests` / `SensorRangeConfigLoaderTests` (user-configurable ranges: per-field fallback, inconsistent/non-finite override rejection, JSON load incl. malformed→defaults). |
 | RC-009 | Verified | `SerialPortServiceFramingTests` (processing-task fault raises `ProcessingFaulted`; normal cancellation does not) + `SensorViewModelProcessingFaultTests` (degraded state, reconnect clears fault). |
 | RC-003, RC-010, RC-011, RC-001b | Not started | Features not yet implemented; tests to follow implementation. |
 
