@@ -36,7 +36,7 @@ This folder contains the IEC 62304:2006+AMD1:2015 software lifecycle documentati
 
 ## Traceability
 
-The end-to-end chain is **Hazard → Risk Control → Requirement → Architectural Element → Unit → Verification**, maintained primarily in [Architecture Design §4](Software_Architecture_Design_IEC62304.md) and cross-referenced from the Risk Management File and Verification & Test Plan.
+The end-to-end chain is **Hazard → Risk Control → Requirement → Architectural Element → Unit → Verification**, consolidated in the [Traceability Matrix](Traceability_Matrix.md) (DOC-IEC-011) and maintained in detail across [Architecture Design §4](Software_Architecture_Design_IEC62304.md), the Risk Management File, and the Verification & Test Plan.
 
 ## Roadmap & assessment
 

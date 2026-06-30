@@ -62,6 +62,7 @@ are proposed.
 | DOC-IEC-008 | Software Problem Resolution Process | Draft | [docs/IEC/](../IEC/Software_Problem_Resolution_Process_IEC62304.md) |
 | DOC-IEC-009 | Software Maintenance Plan | Draft | [docs/IEC/](../IEC/Software_Maintenance_Plan_IEC62304.md) |
 | DOC-IEC-010 | Software Verification and Test Plan | Draft | [docs/IEC/](../IEC/Software_Verification_and_Test_Plan_IEC62304.md) |
+| DOC-IEC-011 | Traceability Matrix | Draft | [docs/IEC/](../IEC/Traceability_Matrix.md) |
 
 ## 4. Records index
 
