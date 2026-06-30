@@ -158,7 +158,7 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 
 **`OnDataReceived` (serial thread):** read `BytesToRead` into a chunk; enqueue to `_byteQueue`. Kept minimal so the event handler does not block. Exceptions logged as warnings. (RC-004.)
 
-**`ProcessIncomingDataAsync` (processing thread):** loop until cancellation; dequeue a chunk → append to `_receiveBuffer` → `ParseReceiveBuffer()`; if queue empty, `await Task.Delay(10, ct)`. `OperationCanceledException` is the expected exit; other exceptions logged.
+**`ProcessIncomingDataAsync` (processing thread):** loop until cancellation; dequeue a chunk → append to `_receiveBuffer` → `ParseReceiveBuffer()`; if queue empty, `await Task.Delay(10, ct)`. `OperationCanceledException` is the expected exit. Any other exception is logged and raises `ProcessingFaulted` (RC-009 / SRS-C-005 / HAZ-004): the task terminated abnormally while the port may still be open, so the application layer is notified to surface a degraded state and require explicit reconnect.
 
 **`ParseReceiveBuffer()` — algorithm (SRS-004/005/016 / SRS-C-004 / RC-001, RC-005):** loop:
 0. If `_receiveBuffer.Count > MAX_RECEIVE_BUFFER_BYTES` → log, clear buffer, reset start-time, return (buffer cap, HAZ-005).
@@ -228,7 +228,7 @@ The detailed design is verified by review against these criteria:
 | Free of unintended functionality | The decoded `UNIT_ID` is currently unused (logged only); recorded as an open item, not hidden behaviour. |
 | Risk controls realizable | RC-001/002/004/005/006/008 map to concrete units; pending RCs (003/009/010/011, 001b) are flagged. |
 
-Open detailed-design items: processing-task failure surfacing (SRS-C-005), device/protocol-version check and `UNIT_ID` use (SRS-C-002), configuration protection/audit (SRS-C-007).
+Open detailed-design items: device/protocol-version check and `UNIT_ID` use (SRS-C-002), configuration protection/audit (SRS-C-007).
 
 ## 7. Revision History
 

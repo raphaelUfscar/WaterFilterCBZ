@@ -61,6 +61,13 @@ namespace WaterFilterCBZ
             {
                 _viewModel.UpdateConnectionStatus(_serialService.IsConnected, comPort);
             };
+
+            // RC-009 / SRS-C-005: surface an unexpected processing-task termination so the
+            // operator is not left looking at a "connected" display with no live data.
+            _serialService.ProcessingFaulted += (s, reason) =>
+            {
+                _viewModel.NotifyProcessingFault(reason);
+            };
         }
 
         /// <summary>

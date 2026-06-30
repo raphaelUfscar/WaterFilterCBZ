@@ -23,7 +23,7 @@ Until these are implemented **and verified**, residual risk for HAZ-001/003/004/
 |---|---|---|---|---|---|
 | P1 | Receive-buffer maximum length (drop + log on overflow) | RC-005 / SRS-C-004 | HAZ-005 | ✅ | `MAX_RECEIVE_BUFFER_BYTES` (4096) cap in `SerialPortService.ParseReceiveBuffer`; verified by `SerialPortServiceFramingTests` (2026-06-30). |
 | P1 | Device identity + serial protocol/schema version check | RC-003 / SRS-C-002 | HAZ-003 | ❌ | Needs firmware-side scheme (OAI-006). Also enables using the decoded `UNIT_ID`. |
-| P2 | Processing-task failure supervision (surface degraded/error state) | RC-009 / SRS-C-005 | HAZ-004 | ❌ | Detect termination of the background parse task; visible state + recovery/require reconnect. |
+| P2 | Processing-task failure supervision (surface degraded/error state) | RC-009 / SRS-C-005 | HAZ-004 | ✅ | `SerialPortService.ProcessingFaulted` → `SensorViewModel` degraded state + explicit reconnect; verified by `SerialPortServiceFramingTests` + `SensorViewModelProcessingFaultTests` (2026-06-30). |
 | P2 | Verified failure-state taxonomy in UI | RC-010 / SRS-C-006 | HAZ-001..005 | ⚠️ | disconnected/connecting/connected/stale/out-of-spec/invalid exist; parser-error, device-mismatch, processing-fault states still to define + test. |
 | P3 | Configuration protection + audit (port, baud, ranges, timeout) | RC-011 / SRS-C-007 | — | ❌ | Validated load + change audit trail. Pairs with persistent config (see features roadmap §3). |
 | P3 | Stronger integrity code (CRC vs 8-bit additive checksum) | RC-001b / SRS-C-008 | HAZ-001 | 🔵 | Decide per risk analysis; current additive checksum may be sufficient. |
@@ -80,7 +80,7 @@ Software-engineering track (this repo):
 1. ~~**RC-005 buffer cap**~~ — done (2026-06-30); removed the denial-of-service/HAZ-005 gap.
 2. **Confirm RC-008 ranges + `SENSOR_ID` map** against the real device (§3) — turns the validation from placeholder to real.
 3. **RC-003 device/protocol identity** (needs OAI-006) — also unlocks `UNIT_ID` use.
-4. **RC-009 task-failure supervision**, then **RC-010 failure-state taxonomy** completion.
+4. ~~**RC-009 task-failure supervision**~~ — done (2026-06-30); then **RC-010 failure-state taxonomy** completion.
 5. **RC-011 config protection** + persistent configuration.
 6. Fill the **release record** and promote docs from Draft.
 

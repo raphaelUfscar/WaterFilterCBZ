@@ -272,7 +272,7 @@ The following items are not fully implemented in the current repository and shou
 | Prevent display of data from incompatible firmware | Add protocol version, device identity, and frame schema compatibility checks. | Not currently implemented. |
 | Strengthen corruption detection | Replace 8-bit additive checksum with CRC if required by risk analysis. | Current checksum is simple additive validation. |
 | Bound parser memory under sustained malicious or noisy input | Explicit maximum receive-buffer length with log/drop behavior. | Implemented (`MAX_RECEIVE_BUFFER_BYTES` = 4096) in addition to resynchronization and timeout. |
-| Detect processing-task failure | Add task fault reporting, reconnect strategy, or supervisory watchdog at the application layer. | Exceptions are logged, but no supervisor restarts the task. |
+| Detect processing-task failure | Report task faults to the application layer and require explicit reconnect. | Implemented (RC-009): `SerialPortService.ProcessingFaulted` → `SensorViewModel` degraded state + explicit reconnect. |
 | Isolate safety-critical decisions | Keep any therapy, dosing, shutoff, or alarm decision logic outside the display layer and in a separately verified component. | No therapy-control logic exists in this application. |
 | Protect configuration | Add controlled configuration storage, validation, and audit trail for port, baud rate, thresholds, and sensor definitions. | Port selection and baud rate exist, but no controlled persistent configuration. |
 | Support cybersecurity and misuse controls | Add device authentication or trusted-port/device identity checks if required by the threat model. | Not currently implemented. |

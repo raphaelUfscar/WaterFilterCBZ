@@ -49,5 +49,5 @@ The actionable, gating view of the remaining Class C work (remaining risk contro
 - ✅ **OAI-003** — SENSOR_ID→parameter mapping + default operating/physical ranges implemented (SRS-C-003 / RC-008). **Numeric defaults still to be confirmed against the device specification.**
 - 🔶 **OAI-004** — Communication-loss timeout fixed at **5 s** (✅ SRS-C-001 / RC-002 implemented); **max sample rate still open** (SRS-NF-001 / RC-004).
 - **OAI-006** — Protocol versioning / device identity (SRS-C-002 / RC-003).
-- Implement and verify remaining risk controls: RC-003, RC-009, RC-010, RC-011, and decide RC-001b (CRC). **RC-002 and RC-008 done (2026-06-05); RC-005 buffer cap done (2026-06-30).**
+- Implement and verify remaining risk controls: RC-003, RC-010, RC-011, and decide RC-001b (CRC). **RC-002 and RC-008 done (2026-06-05); RC-005 buffer cap and RC-009 task-failure surfacing done (2026-06-30).**
 - ✅ Author the **Detailed Design** (Clause 5.4).
