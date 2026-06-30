@@ -86,8 +86,8 @@ A real audit (e.g., MDR notified body, FDA) examines a **quality management syst
 | Code-backed risk controls | 2 of ~11 implemented + tested | Most controls unimplemented |
 | **Risk management** (ISO 14971) | Software-side draft, **provisional severities** | No device-level RM file; no real hazard analysis |
 | **Intended use / clinical** | **Assumed**, not defined by a manufacturer | No clinical evaluation, no real intended-use statement |
-| **QMS context (ISO 13485)** | **None** | The whole framework these docs live in is missing |
-| **Document control** | Informal markdown revision tables | No controlled IDs, approval signatures, review records |
+| **QMS context (ISO 13485)** | **Draft scaffold** at [docs/QMS/](QMS/) (manual + 9 SOPs + register) | Unapproved AI drafts; no assigned roles, no operating records — structure only, not a working QMS |
+| **Document control** | Procedure + controlled-document header + register **drafted** ([SOP-001](QMS/SOP-001_Document_and_Record_Control.md)) | Signatures blank; IEC docs not yet on the controlled header; no recorded reviews/approvals |
 | **Verification records** | Automated tests pass | No witnessed/approved protocols & results, no independence evidence |
 | Usability (IEC 62366), Cybersecurity (IEC 81001-5-1), SBOM | **Not addressed** | Required for modern submissions |
 | SOUP | Inventoried | No anomaly-monitoring process actually operating |
@@ -96,7 +96,7 @@ A real audit (e.g., MDR notified body, FDA) examines a **quality management syst
 **Rough maturity:** document *type* coverage of the software portion ≈ 60–70%; genuine *audit-readiness* ≈ 15–25%. The honest framing: **we built a high-quality skeleton and proved two risk controls in code — we did not build a compliant medical-device software project.**
 
 ### The biggest gaps (in priority order)
-1. **No QMS / ISO 13485 wrapper** — IEC 62304 is meaningless to an auditor outside one.
+1. **No operating QMS / ISO 13485 wrapper** — a draft document scaffold now exists at [docs/QMS/](QMS/), but it is unapproved and not yet operating; IEC 62304 is meaningless to an auditor outside a working one.
 2. **No real, device-level ISO 14971 risk management** — severities are placeholders; intended use is assumed.
 3. **No document control with reviews/approvals/signatures** — markdown revision tables aren't records.
 4. **Most risk controls unimplemented**; range defaults unconfirmed against the device.
