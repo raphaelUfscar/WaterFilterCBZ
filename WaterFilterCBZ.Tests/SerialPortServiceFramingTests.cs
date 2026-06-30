@@ -270,6 +270,41 @@ public class SerialPortServiceFramingTests
         Assert.Empty(ReceiveBuffer(service));
     }
 
+    // ----- RC-005 / SRS-C-004: receive-buffer cap -------------------------
+
+    [Fact]
+    public void ParseReceiveBuffer_BufferExceedsMaxLength_DropsAndResets()
+    {
+        var (service, samples) = NewService();
+        using var _ = service;
+        // Fill past the 4096-byte cap with start-byte noise (no valid frame can assemble).
+        ReceiveBuffer(service).AddRange(Enumerable.Repeat((byte)0xAA, 4097));
+        SetSawStartByteAt(service, DateTime.UtcNow);
+
+        InvokeParseReceiveBuffer(service);
+
+        Assert.Empty(samples);
+        Assert.Empty(ReceiveBuffer(service)); // dropped on overflow
+    }
+
+    [Fact]
+    public void ParseReceiveBuffer_BufferAtCap_StillParsesValidFrame()
+    {
+        var (service, samples) = NewService();
+        using var _ = service;
+        // Leading noise that keeps the buffer at/under the cap, followed by a genuine frame.
+        var frame = SimpleFrame(0x02, 7.5f);
+        int noise = 4096 - frame.Length;
+        ReceiveBuffer(service).AddRange(Enumerable.Repeat((byte)0x00, noise));
+        ReceiveBuffer(service).AddRange(frame);
+
+        InvokeParseReceiveBuffer(service);
+
+        var sample = Assert.Single(samples);
+        Assert.Equal("0x02", sample.SensorId);
+        Assert.Empty(ReceiveBuffer(service));
+    }
+
     // ----- ProcessIncomingDataAsync ---------------------------------------
 
     [Fact]

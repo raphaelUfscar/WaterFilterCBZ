@@ -46,6 +46,7 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 | `END_BYTE` | 0x55 | `SerialPortService` | Frame end (SRS-004). |
 | `SENSOR_ENTRY_SIZE_BYTES` | 10 | `SerialPortService` | id(1)+ts(4)+unit(1)+float(4). |
 | `MAX_SENSORS` | 4 | `SerialPortService` | Bounds count (RC, SRS-004/008). |
+| `MAX_RECEIVE_BUFFER_BYTES` | 4096 | `SerialPortService` | Receive-buffer cap; drop/reset/log on overflow (RC-005 / SRS-C-004 / HAZ-005). |
 | `FrameAssemblyTimeout` | 350 ms | `SerialPortService` | Partial-frame reset (SRS-016 / RC-005). |
 | `PLOT_UPDATE_THRESHOLD_MS` | 50 | `SensorViewModel` | Per-sensor chart throttle (RC-004). |
 | Chart point cap | 300 / series | `SensorViewModel.UpdateChartForSensor` | Bounds chart memory (SRS-008). |
@@ -159,7 +160,8 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 
 **`ProcessIncomingDataAsync` (processing thread):** loop until cancellation; dequeue a chunk → append to `_receiveBuffer` → `ParseReceiveBuffer()`; if queue empty, `await Task.Delay(10, ct)`. `OperationCanceledException` is the expected exit; other exceptions logged.
 
-**`ParseReceiveBuffer()` — algorithm (SRS-004/005/016 / RC-001, RC-005):** loop:
+**`ParseReceiveBuffer()` — algorithm (SRS-004/005/016 / SRS-C-004 / RC-001, RC-005):** loop:
+0. If `_receiveBuffer.Count > MAX_RECEIVE_BUFFER_BYTES` → log, clear buffer, reset start-time, return (buffer cap, HAZ-005).
 1. Find `START_BYTE`; if none → clear buffer, reset start-time, return; drop any leading noise.
 2. If `< 2` bytes → set start-time if unset, return (await more).
 3. If elapsed since first start byte > `FrameAssemblyTimeout` → log, clear buffer, reset, return.
@@ -179,7 +181,7 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 
 - **Concurrency:** Three threads cooperate — serial event (enqueue only), processing task (parse), UI (consume via callback→VM marshaling). The `ConcurrentQueue` is the hand-off; `_receiveBuffer` is touched only by the processing task.
 - **Error handling:** Every external boundary (open, read, parse, task body) is guarded and logged; malformed frames are contained (no throw, resync).
-- **Open item:** No explicit maximum length on `_receiveBuffer` yet (RC-005 / SRS-C-004 buffer cap pending).
+- **Buffer cap:** `_receiveBuffer` is bounded by `MAX_RECEIVE_BUFFER_BYTES` (4096); on overflow it is dropped and parser state reset, with a warning logged (RC-005 / SRS-C-004 / HAZ-005).
 - **Traceability:** SRS-002–006, SRS-015, SRS-016, SRS-017 / RC-001, RC-004, RC-005.
 
 ### 4.9 `SerialPortHelper` (AE-UTIL-001)
@@ -224,9 +226,9 @@ The detailed design is verified by review against these criteria:
 | Implements the requirements | Yes — each unit traces to SRS / SRS-C items (§4). |
 | No internal contradictions | Verified: validation tiers, freshness, and threading responsibilities are mutually consistent. |
 | Free of unintended functionality | The decoded `UNIT_ID` is currently unused (logged only); recorded as an open item, not hidden behaviour. |
-| Risk controls realizable | RC-001/002/004/005/006/008 map to concrete units; pending RCs (003/009/010/011, 005 cap, 001b) are flagged. |
+| Risk controls realizable | RC-001/002/004/005/006/008 map to concrete units; pending RCs (003/009/010/011, 001b) are flagged. |
 
-Open detailed-design items: explicit receive-buffer cap (SRS-C-004), processing-task failure surfacing (SRS-C-005), device/protocol-version check and `UNIT_ID` use (SRS-C-002), configuration protection/audit (SRS-C-007).
+Open detailed-design items: processing-task failure surfacing (SRS-C-005), device/protocol-version check and `UNIT_ID` use (SRS-C-002), configuration protection/audit (SRS-C-007).
 
 ## 7. Revision History
 

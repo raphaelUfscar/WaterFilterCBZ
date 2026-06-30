@@ -37,6 +37,10 @@ namespace WaterFilterCBZ.Services
         private const byte END_BYTE = 0x55;
         private const int SENSOR_ENTRY_SIZE_BYTES = 10; // sensor_id(1) + timestamp(4) + unit_id(1) + float(4)
         private const int MAX_SENSORS = 4;
+        // RC-005 / SRS-C-004 / HAZ-005: explicit receive-buffer cap. The largest valid frame is
+        // 4 + MAX_SENSORS*SENSOR_ENTRY_SIZE_BYTES (= 44) bytes; this cap is far above that so it never
+        // trips on legitimate traffic, but bounds memory under sustained noisy/malicious input.
+        private const int MAX_RECEIVE_BUFFER_BYTES = 4096;
         private static readonly TimeSpan FrameAssemblyTimeout = TimeSpan.FromMilliseconds(350);
         private DateTime? _sawStartByteAtUtc;
 
@@ -194,6 +198,19 @@ namespace WaterFilterCBZ.Services
 
         private void ParseReceiveBuffer()
         {
+            // RC-005 / SRS-C-004 / HAZ-005: bound the receive buffer. If it has grown past the cap
+            // without yielding a valid frame, drop the accumulated bytes and reset parser state so a
+            // sustained stream of noise or malformed data cannot exhaust memory or lock up the parser.
+            if (_receiveBuffer.Count > MAX_RECEIVE_BUFFER_BYTES)
+            {
+                Log.Warning(
+                    "Receive buffer exceeded maximum length ({Count} > {Max} bytes); dropping buffer and resetting parser state.",
+                    _receiveBuffer.Count, MAX_RECEIVE_BUFFER_BYTES);
+                _receiveBuffer.Clear();
+                _sawStartByteAtUtc = null;
+                return;
+            }
+
             while (true)
             {
                 int startIndex = _receiveBuffer.IndexOf(START_BYTE);
