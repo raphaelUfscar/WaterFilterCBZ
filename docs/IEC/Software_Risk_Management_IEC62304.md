@@ -71,7 +71,7 @@ Initial risk is evaluated **before** the software risk control; residual risk **
 | HAZ-003 | 4×2=8 | RC-003 | Verify device identity + protocol version before accepting samples. | SRS-C-002 | AE-PROTO-001, AE-ACQ-001 | 4×1=4 (target) | **Not implemented** |
 | HAZ-004 | 3×3=9 | RC-004 | Asynchronous acquisition + per-sensor chart throttling. | SRS-003, SRS-008, SRS-017 | AE-ACQ-001, AE-VM-001 | 3×2=6 | Implemented |
 | HAZ-004 | 3×3=9 | RC-009 | Detect processing-task failure; surface degraded/error state. | SRS-C-005 | AE-ACQ-001, AE-VM-001 | 3×1=3 (target) | **Not implemented** |
-| HAZ-005 | 3×3=9 | RC-005 | Parser resync + frame-assembly timeout; **add explicit buffer cap**. | SRS-005, SRS-016, SRS-C-004 | AE-PROTO-001 | 3×1=3 (target) | **Partial** (resync+timeout done; cap pending) |
+| HAZ-005 | 3×3=9 | RC-005 | Parser resync + frame-assembly timeout + explicit 4096-byte buffer cap (drop/reset/log on overflow). | SRS-005, SRS-016, SRS-C-004 | AE-PROTO-001 | 3×1=3 | **Implemented** |
 | HAZ-006 | 3×2=6 | RC-006 | Enumerate ports; show connection status; command enablement. | SRS-001, SRS-002, SRS-012 | AE-UTIL-001, AE-VM-001, AE-UI-001 | 3×1=3 | Implemented |
 | HAZ-001..005 | — | RC-010 | Defined, verified UI state for each failure condition. | SRS-C-006 | AE-VM-001, AE-UI-001 | — | **Partial** |
 | — | — | RC-011 | Configuration protection + audit (port, baud, ranges, timeout). | SRS-C-007 | AE-VM-001 | — | **Not implemented** |
@@ -82,7 +82,7 @@ Initial risk is evaluated **before** the software risk control; residual risk **
 
 | SOUP | Failure mode considered | Possible contribution | Mitigation in software |
 |---|---|---|---|
-| System.IO.Ports 9.0.0 | Dropped/duplicated bytes, port exception, silent stop | HAZ-001, HAZ-002, HAZ-004, HAZ-005 | Frame validation, resync, timeout, error logging; **freshness + buffer cap pending**. |
+| System.IO.Ports 9.0.0 | Dropped/duplicated bytes, port exception, silent stop | HAZ-001, HAZ-002, HAZ-004, HAZ-005 | Frame validation, resync, timeout, buffer cap, error logging; **task-failure surfacing pending**. |
 | .NET runtime (WPF) | Dispatcher/threading fault, unhandled exception | HAZ-004 | UI marshaling, try/catch with logging; **task-failure supervision pending**. |
 | OxyPlot.Wpf 2.1.2 | Render slowdown/leak | HAZ-004 | 300-point cap, throttling. |
 | Serilog (+sinks) | Log write failure | HAZ-007 (loss of evidence) | Non-blocking sinks; failure does not stop monitoring. |
@@ -97,7 +97,7 @@ Each implemented RC must have verification evidence; each pending RC must have a
 |---|---|---|
 | RC-001 | Partial | `SerialPortServiceTests` (valid frame decode); **rejection-path tests for invalid count/checksum/end-byte to be added**. |
 | RC-004 | Partial | Async design analysis; **sustained-rate stress test to be added**. |
-| RC-005 | Partial | Resync/timeout covered by design + simulator error injection; **buffer-cap test pending feature**. |
+| RC-005 | Verified | Resync/timeout covered by design + simulator error injection; buffer-cap covered by `SerialPortServiceFramingTests` (overflow drops/resets; at-cap still parses a valid frame). |
 | RC-006 | Verified | `ConnectionWorkflowTests` (E2E port select / connect / disconnect). |
 | RC-007 | Partial | `ConnectionWorkflowTests` asserts commands reach the log file; **full event-coverage procedure pending**. |
 | RC-002 | Verified | `SensorDisplayInfoTests` stale-data cases (becomes stale after 5 s, stays fresh within threshold, recovers on new sample, transition `PropertyChanged`). |
@@ -114,7 +114,7 @@ For each change (defect fix or enhancement), the [Problem Resolution Process](So
 
 ## 8. Residual Risk Summary
 
-RC-002 (stale-data supervision, HAZ-002) and RC-008 (two-tier value validation, HAZ-001) are **implemented and verified** as of 2026-06-05. Several Class C risk controls (RC-003, RC-004 supervision, RC-005 buffer cap, RC-009, RC-010, RC-011) remain **not yet implemented**, and RC-001b (CRC) is a pending decision. Until they are implemented and verified, the residual risk for HAZ-003, HAZ-004, and HAZ-005 is **not yet acceptable for a Class C release**; HAZ-001 residual risk also depends on confirming the RC-008 range defaults against the device specification. The overall residual-risk acceptability statement and benefit-risk conclusion are made at the device level (ISO 14971) once severities (OAI-002) and acceptance values (OAI-003, OAI-004) are fixed and the controls are verified.
+RC-002 (stale-data supervision, HAZ-002) and RC-008 (two-tier value validation, HAZ-001) are **implemented and verified** as of 2026-06-05; RC-005 (receive-buffer cap, HAZ-005) is **implemented and verified** as of 2026-06-30. Several Class C risk controls (RC-003, RC-004 supervision, RC-009, RC-010, RC-011) remain **not yet implemented**, and RC-001b (CRC) is a pending decision. Until they are implemented and verified, the residual risk for HAZ-003 and HAZ-004 is **not yet acceptable for a Class C release**; HAZ-001 residual risk also depends on confirming the RC-008 range defaults against the device specification. The overall residual-risk acceptability statement and benefit-risk conclusion are made at the device level (ISO 14971) once severities (OAI-002) and acceptance values (OAI-003, OAI-004) are fixed and the controls are verified.
 
 ## 9. Open Risk Inputs
 

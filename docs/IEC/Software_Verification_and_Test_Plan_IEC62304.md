@@ -46,7 +46,7 @@ For Class C, verification of safety-relevant units and risk controls should not 
 | Frame-assembly timeout reset | SRS-016 / RC-005 | Timeout reset unit test |
 | `ParseFrame` edge cases: invalid length, unit handling, multi-sensor | SRS-006 | Frame parsing unit tests |
 | `SensorViewModel.AddSample` new-sensor registration, sample count, dispatcher path, chart assignment beyond 4 | SRS-007, SRS-008 | View-model unit tests |
-| Buffer cap drop/reset | SRS-C-004 / RC-005 | Test after feature implemented |
+| Buffer cap drop/reset | SRS-C-004 / RC-005 | **Done** — `SerialPortServiceFramingTests` (overflow past 4096 bytes drops/resets; buffer at cap still parses a valid frame) |
 | Stale-data state transition | SRS-C-001 / RC-002 | **Done** — `SensorDisplayInfoTests` (becomes stale after 5 s, fresh within threshold, recovers on new sample, no-op when unchanged, `IsStale` PropertyChanged) |
 | Range/unit plausibility rejection | SRS-C-003 / RC-008 | **Done** — `SensorParameterTests` (classify normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry map) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery) |
 | Device/protocol-version rejection | SRS-C-002 / RC-003 | Test after feature implemented |
