@@ -73,7 +73,7 @@ Initial risk is evaluated **before** the software risk control; residual risk **
 | HAZ-004 | 3×3=9 | RC-009 | Detect processing-task failure; surface degraded/error state; require explicit reconnect. | SRS-C-005 | AE-ACQ-001, AE-VM-001 | 3×1=3 | **Implemented** |
 | HAZ-005 | 3×3=9 | RC-005 | Parser resync + frame-assembly timeout + explicit 4096-byte buffer cap (drop/reset/log on overflow). | SRS-005, SRS-016, SRS-C-004 | AE-PROTO-001 | 3×1=3 | **Implemented** |
 | HAZ-006 | 3×2=6 | RC-006 | Enumerate ports; show connection status; command enablement. | SRS-001, SRS-002, SRS-012 | AE-UTIL-001, AE-VM-001, AE-UI-001 | 3×1=3 | Implemented |
-| HAZ-001..005 | — | RC-010 | Defined, verified UI state for each failure condition. | SRS-C-006 | AE-VM-001, AE-UI-001 | — | **Partial** |
+| HAZ-001..005 | — | RC-010 | Defined, verified UI state for each failure condition (`MonitoringState` taxonomy + colour-coded chip). | SRS-C-006 | AE-VM-001, AE-UI-001 | — | **Implemented** (parser-error/device-mismatch detectors pending RC-003 + parser supervisor) |
 | — | — | RC-011 | Configuration protection + audit (port, baud, ranges, timeout). | SRS-C-007 | AE-VM-001 | — | **Not implemented** |
 | HAZ-007 | 3×3=9 | RC-007 | Record safety-relevant operational events to rolling logs. | SRS-010 | AE-LOG-001 | 3×2=6 | Implemented |
 | (constraint) | — | RC-007c | No safety decision logic in presentation layer. | SRS-C-009 | architecture-wide | — | Held |
@@ -103,7 +103,8 @@ Each implemented RC must have verification evidence; each pending RC must have a
 | RC-002 | Verified | `SensorDisplayInfoTests` stale-data cases (becomes stale after 5 s, stays fresh within threshold, recovers on new sample, transition `PropertyChanged`). |
 | RC-008 | Verified | `SensorParameterTests` (classification: normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry mapping) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery, stale cleared on rejected sample) + `SensorParameterRegistryConfigTests` / `SensorRangeConfigLoaderTests` (user-configurable ranges: per-field fallback, inconsistent/non-finite override rejection, JSON load incl. malformed→defaults). |
 | RC-009 | Verified | `SerialPortServiceFramingTests` (processing-task fault raises `ProcessingFaulted`; normal cancellation does not) + `SensorViewModelProcessingFaultTests` (degraded state, reconnect clears fault). |
-| RC-003, RC-010, RC-011, RC-001b | Not started | Features not yet implemented; tests to follow implementation. |
+| RC-010 | Verified | `MonitoringStateResolverTests` (all 8 states + precedence ordering + labels) + `SensorViewModelMonitoringStateTests` (VM drives each reachable state: disconnected/connecting/healthy/invalid/processing-fault/device-mismatch/parser-error, reconnect & clear-data transitions). _Parser-error & device-mismatch detectors land with RC-003 + the parser-error supervisor._ |
+| RC-003, RC-011, RC-001b | Not started | Features not yet implemented; tests to follow implementation. |
 
 ## 7. Risk Management of Software Changes (Clause 7.4)
 
