@@ -39,7 +39,7 @@ the authoritative records; this matrix is the cross-cutting index over them.
 | HAZ-004 (unavailable/unresponsive) | RC-009 processing-task fault surfacing | SRS-C-005 | AE-ACQ-001, AE-VM-001 | `SerialPortService.ProcessingFaulted`, `SensorViewModel.NotifyProcessingFault` | `SerialPortServiceFramingTests`, `SensorViewModelProcessingFaultTests` | ✅ Verified |
 | HAZ-005 (resource exhaustion / parser lockup) | RC-005 buffer cap + resync + timeout | SRS-005, SRS-016, SRS-C-004 | AE-PROTO-001 | `SerialPortService.ParseReceiveBuffer` (`MAX_RECEIVE_BUFFER_BYTES`) | `SerialPortServiceFramingTests` | ✅ Verified |
 | HAZ-006 (wrong/unavailable port) | RC-006 port enumeration + status + command enablement | SRS-001, SRS-002, SRS-012 | AE-UTIL-001, AE-VM-001, AE-UI-001 | `SerialPortHelper`, `SensorViewModel` commands | `ConnectionWorkflowTests` (E2E) | ✅ Verified |
-| HAZ-001..005 (failure presentation) | RC-010 UI failure-state taxonomy | SRS-C-006 | AE-VM-001, AE-UI-001 | `MonitoringState`, `MonitoringStateResolver`, `SensorViewModel.MonitoringState`, `MonitoringStateToBrushConverter` | `MonitoringStateResolverTests`, `SensorViewModelMonitoringStateTests` | 🔶 Verified — landing via **PR #26** (parser-error/device-mismatch detectors pending) |
+| HAZ-001..005 (failure presentation) | RC-010 UI failure-state taxonomy | SRS-C-006 | AE-VM-001, AE-UI-001 | `MonitoringState`, `MonitoringStateResolver`, `SensorViewModel.MonitoringState`, `MonitoringStateToBrushConverter` | `MonitoringStateResolverTests`, `SensorViewModelMonitoringStateTests`, `MonitoringStateToBrushConverterTests` | ✅ Verified (parser-error/device-mismatch detectors pending RC-003 + parser supervisor) |
 | (configuration) | RC-011 config protection + audit | SRS-C-007 | AE-VM-001 | — | — | ❌ Not implemented |
 | HAZ-007 (no diagnostic evidence) | RC-007 safety-relevant event logging | SRS-010 | AE-LOG-001 | `LoggingService`, log calls across units | `ConnectionWorkflowTests` (command logging); **full event-coverage procedure pending** | ⚠️ Implemented, coverage procedure pending |
 | (architecture constraint) | RC-007c no safety logic in presentation layer | SRS-C-009 | architecture-wide | — | Design review | Held (constraint) |
@@ -54,7 +54,7 @@ the authoritative records; this matrix is the cross-cutting index over them.
 | SRS-C-003 / RC-008 | `SensorParameterTests`, `SensorDisplayInfoTests`, `SensorParameterRegistryConfigTests`, `SensorRangeConfigLoaderTests` | ✅ |
 | SRS-C-004 / RC-005 | `SerialPortServiceFramingTests` | ✅ |
 | SRS-C-005 / RC-009 | `SerialPortServiceFramingTests`, `SensorViewModelProcessingFaultTests` | ✅ |
-| SRS-C-006 / RC-010 | `MonitoringStateResolverTests`, `SensorViewModelMonitoringStateTests` | 🔶 PR #26 |
+| SRS-C-006 / RC-010 | `MonitoringStateResolverTests`, `SensorViewModelMonitoringStateTests`, `MonitoringStateToBrushConverterTests` | ✅ |
 | SRS-C-007 / RC-011 | — | ❌ |
 | SRS-C-008 / RC-001b | — | 🔵 |
 | SRS-C-009 / RC-007c | Design review | Held |
