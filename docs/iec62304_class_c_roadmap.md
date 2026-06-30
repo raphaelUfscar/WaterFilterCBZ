@@ -59,11 +59,13 @@ Class C gating note: each remaining risk control in §2 must have positive **and
 
 IEC 62304 documents are necessary but **not sufficient** for an official audit (notified body / FDA): they live inside a quality system and a design history file with controlled, reviewed, approved, evidence-backed records. The current set is a strong *scaffold* but the surrounding compliance system is largely absent. These gaps are the dominant blockers to audit-readiness and are tracked here so they are not mistaken for "done". See the [effort report §4](IEC62304_effort_report.md) for the full assessment.
 
+> A **draft ISO 13485 QMS document scaffold** now exists at [docs/QMS/](QMS/) (Quality Manual + 9 SOPs + controlled-document register). It gives the system a structure but, by itself, **does not close any gap below**: the documents are unapproved AI drafts, no roles are assigned, and no records exist. It moves QMS-001/QMS-003 from "absent" to "drafted, pending adoption and qualified sign-off".
+
 | ID | Gap | Status | Note |
 |---|---|---|---|
-| QMS-001 | No **ISO 13485 quality management system** wrapping these documents | ❌ | IEC 62304 is meaningless to an auditor outside a QMS. Highest-priority structural gap. |
-| QMS-002 | No device-level **ISO 14971 risk management file**; software severities are provisional and intended use is assumed | ❌ | Confirm intended use → real hazard analysis → fix severities (links OAI-002, OAI-003). |
-| QMS-003 | **Document control** is informal (markdown revision tables) — no controlled document IDs, approval signatures, or review records | ❌ | Promote docs from Draft via recorded reviews + approvals by qualified personnel. |
+| QMS-001 | No **ISO 13485 quality management system** wrapping these documents | 🔶 | **Draft scaffold added (2026-06-30):** [docs/QMS/](QMS/) — Quality Manual + 9 SOPs + controlled-document register, cross-linked to the IEC set. **Not closed:** documents are unapproved AI drafts (QMS-009); the system is not operating (no assigned roles, no records). |
+| QMS-002 | No device-level **ISO 14971 risk management file**; software severities are provisional and intended use is assumed | ❌ | Confirm intended use → real hazard analysis → fix severities (links OAI-002, OAI-003). [SOP-007](QMS/SOP-007_Risk_Management.md) defines the process; the device-level file is still missing. |
+| QMS-003 | **Document control** is informal (markdown revision tables) — no controlled document IDs, approval signatures, or review records | 🔶 | **Procedure + register drafted:** [SOP-001](QMS/SOP-001_Document_and_Record_Control.md) defines a controlled-document header (IDs, approval/signature blocks, effective dates) and the [register](QMS/Controlled_Document_Register.md) lists all docs. **Not closed:** signatures blank; IEC docs not yet migrated to the controlled header; no recorded reviews/approvals. |
 | QMS-004 | **Verification records** are automated test runs only — no witnessed/approved protocols & results, no independence evidence | ⚠️ | Tie CI evidence to approved protocols; record reviewer ≠ author for safety-relevant changes. |
 | QMS-005 | **Usability engineering file (IEC 62366-1)** not addressed | ❌ | Required for a real submission. |
 | QMS-006 | **Cybersecurity (IEC 81001-5-1 / premarket guidance)** and a formal **SBOM** not addressed | ❌ | Threat model, secure-by-design evidence, SBOM generation. |
@@ -84,7 +86,7 @@ Software-engineering track (this repo):
 5. **RC-011 config protection** + persistent configuration.
 6. Fill the **release record** and promote docs from Draft.
 
-Compliance track (organizational, prerequisite for any audit): address §7 — start with QMS-001 (ISO 13485), QMS-002 (ISO 14971), QMS-003/009 (document control + qualified review).
+Compliance track (organizational, prerequisite for any audit): address §7. QMS-001/003 now have a **draft scaffold** at [docs/QMS/](QMS/); the next moves are organizational, not authoring — assign qualified roles, adopt the SOPs, perform recorded reviews/approvals (QMS-009), migrate the IEC docs onto the controlled-document header, then stand up QMS-002 (device ISO 14971) and the operating records.
 
 ## 9. Revision history
 

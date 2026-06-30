@@ -42,6 +42,8 @@ The end-to-end chain is **Hazard → Risk Control → Requirement → Architectu
 
 The actionable, gating view of the remaining Class C work (remaining risk controls, open inputs, QMS/process gaps, ordered next steps) is tracked in the [Class C compliance roadmap](../iec62304_class_c_roadmap.md). An honest assessment of how far this set is from an audit-passing package is in the [IEC 62304 effort report](../IEC62304_effort_report.md).
 
+These IEC 62304 documents are the software design-control method **within** a quality management system. A draft ISO 13485 QMS document scaffold (Quality Manual, SOPs, controlled-document register) wrapping this set lives in [docs/QMS/](../QMS/README.md) — note it is an unapproved draft, not an operating QMS (gaps QMS-001/003/009).
+
 ## Open items to close for the Class C baseline
 
 - ✅ **OAI-001** — Software safety class assigned: **C**.
