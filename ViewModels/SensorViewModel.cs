@@ -35,6 +35,14 @@ namespace WaterFilterCBZ.ViewModels
         private string? _selectedPort = "COM4";
         private bool _isConnected = false;
         private bool _hasProcessingFault = false;
+        private bool _isConnecting = false;
+        private bool _hasDeviceMismatch = false;
+        private bool _hasParserError = false;
+        private MonitoringState _monitoringState = MonitoringState.Disconnected;
+
+        // Guards aggregation of per-sensor state out of _sensorMap, which is written on the
+        // processing thread and read by the UI-thread stale timer (RC-010 state derivation).
+        private readonly object _sync = new();
 
         public ObservableCollection<SensorDisplayInfo> Sensors { get; } = new();
         public ObservableCollection<string> AvailablePorts
@@ -52,7 +60,7 @@ namespace WaterFilterCBZ.ViewModels
         public bool IsConnected
         {
             get => _isConnected;
-            set => SetProperty(ref _isConnected, value);
+            set { if (SetProperty(ref _isConnected, value)) RecomputeMonitoringState(); }
         }
 
         /// <summary>
@@ -63,8 +71,53 @@ namespace WaterFilterCBZ.ViewModels
         public bool HasProcessingFault
         {
             get => _hasProcessingFault;
-            private set => SetProperty(ref _hasProcessingFault, value);
+            private set { if (SetProperty(ref _hasProcessingFault, value)) RecomputeMonitoringState(); }
         }
+
+        /// <summary>True while a connection attempt is in progress (RC-010 / SRS-C-006).</summary>
+        public bool IsConnecting
+        {
+            get => _isConnecting;
+            private set { if (SetProperty(ref _isConnecting, value)) RecomputeMonitoringState(); }
+        }
+
+        /// <summary>
+        /// True when connected to a device with an incompatible identity/protocol version
+        /// (RC-003 / HAZ-003). The detector lands with RC-003; surfaced here via
+        /// <see cref="NotifyDeviceMismatch"/> so the state taxonomy is complete (RC-010).
+        /// </summary>
+        public bool HasDeviceMismatch
+        {
+            get => _hasDeviceMismatch;
+            private set { if (SetProperty(ref _hasDeviceMismatch, value)) RecomputeMonitoringState(); }
+        }
+
+        /// <summary>
+        /// True when the frame parser is in a sustained error condition (HAZ-001/005). Surfaced via
+        /// <see cref="NotifyParserError"/> so the state taxonomy is complete (RC-010).
+        /// </summary>
+        public bool HasParserError
+        {
+            get => _hasParserError;
+            private set { if (SetProperty(ref _hasParserError, value)) RecomputeMonitoringState(); }
+        }
+
+        /// <summary>
+        /// The single effective system monitoring state (RC-010 / SRS-C-006), derived
+        /// deterministically from the connection and data-quality inputs.
+        /// </summary>
+        public MonitoringState MonitoringState
+        {
+            get => _monitoringState;
+            private set
+            {
+                if (SetProperty(ref _monitoringState, value))
+                    OnPropertyChanged(nameof(MonitoringStateLabel));
+            }
+        }
+
+        /// <summary>Operator-facing label for <see cref="MonitoringState"/>.</summary>
+        public string MonitoringStateLabel => MonitoringStateResolver.Describe(_monitoringState);
 
         public ICommand ClearDataCommand { get; }
         public ICommand OpenLogsCommand { get; }
@@ -138,6 +191,9 @@ namespace WaterFilterCBZ.ViewModels
                     Log.Information("Sensor {SensorId} data is fresh again", sensor.SensorId);
                 }
             }
+
+            // Staleness transitions can change the system state (RC-010).
+            RecomputeMonitoringState();
         }
 
         /// <summary>
@@ -189,6 +245,10 @@ namespace WaterFilterCBZ.ViewModels
                 StatusMessage = "Please select a COM port";
                 return;
             }
+
+            // Reflect that an attempt is underway (RC-010); MainWindow performs the actual connect
+            // and calls UpdateConnectionStatus, which clears this on success or failure.
+            IsConnecting = true;
 
             // Trigger connection in MainWindow
             ConnectionStatusChanged?.Invoke();
@@ -248,21 +308,26 @@ namespace WaterFilterCBZ.ViewModels
             try
             {
                 // Ensure sensor exists in map
-                if (!_sensorMap.TryGetValue(sample.SensorId, out var displayInfo))
+                SensorDisplayInfo displayInfo;
+                lock (_sync)
                 {
-                    displayInfo = new SensorDisplayInfo(
-                        sample.SensorId,
-                        StaleThreshold,
-                        SensorParameterRegistry.ForSensorId(sample.SensorId));
-                    _sensorMap[sample.SensorId] = displayInfo;
-
-                    // Add to observable collection on UI thread
-                    App.Current?.Dispatcher?.Invoke(() =>
+                    if (!_sensorMap.TryGetValue(sample.SensorId, out var existing))
                     {
-                        Sensors.Add(displayInfo);
-                    });
+                        existing = new SensorDisplayInfo(
+                            sample.SensorId,
+                            StaleThreshold,
+                            SensorParameterRegistry.ForSensorId(sample.SensorId));
+                        _sensorMap[sample.SensorId] = existing;
 
-                    Log.Information("New sensor registered: {SensorId} ({Parameter})", sample.SensorId, displayInfo.DisplayName);
+                        // Add to observable collection on UI thread
+                        App.Current?.Dispatcher?.Invoke(() =>
+                        {
+                            Sensors.Add(existing);
+                        });
+
+                        Log.Information("New sensor registered: {SensorId} ({Parameter})", sample.SensorId, existing.DisplayName);
+                    }
+                    displayInfo = existing;
                 }
 
                 // Update sensor data (two-tier validation happens inside AddValue)
@@ -273,6 +338,9 @@ namespace WaterFilterCBZ.ViewModels
 
                 if (displayInfo.ValidationState != previousState)
                     LogValidationTransition(displayInfo, sample.Value);
+
+                // Reflect any change in data quality in the system state (RC-010).
+                RecomputeMonitoringState();
 
                 // Do not chart a rejected (implausible) value; it is not a trustworthy measurement.
                 if (displayInfo.ValidationState == SensorValidationState.Invalid)
@@ -377,7 +445,10 @@ namespace WaterFilterCBZ.ViewModels
 
         public void ClearAllData()
         {
-            _sensorMap.Clear();
+            lock (_sync)
+            {
+                _sensorMap.Clear();
+            }
             _sensorPlotIndex.Clear();
             _lastPlotUpdateBySensor.Clear();
             Sensors.Clear();
@@ -391,6 +462,9 @@ namespace WaterFilterCBZ.ViewModels
 
             Log.Information("All sensor data cleared");
             StatusMessage = "Data cleared";
+
+            // Cleared data may change the system state (e.g. invalid/stale -> healthy) (RC-010).
+            RecomputeMonitoringState();
         }
 
         private void OpenLogs()
@@ -410,11 +484,18 @@ namespace WaterFilterCBZ.ViewModels
 
         public void UpdateConnectionStatus(bool isConnected, string? comPort = null)
         {
-            IsConnected = isConnected;
+            // The attempt has resolved either way (RC-010).
+            IsConnecting = false;
 
-            // A fresh, successful connection clears any prior processing fault (RC-009).
+            // A fresh, successful connection clears any prior fault/degraded condition (RC-009/010).
             if (isConnected)
+            {
                 HasProcessingFault = false;
+                HasParserError = false;
+                HasDeviceMismatch = false;
+            }
+
+            IsConnected = isConnected;
 
             ConnectionStatus = isConnected
                 ? $"Connected ({comPort})"
@@ -452,6 +533,55 @@ namespace WaterFilterCBZ.ViewModels
                 Apply();
 
             Log.Error("Processing fault surfaced to operator: {Detail}", detail ?? "(no detail)");
+        }
+
+        /// <summary>
+        /// Surfaces (or clears) a device identity / protocol-version mismatch (RC-003 / HAZ-003).
+        /// The mismatch detector lands with RC-003; this hook lets the defined UI state (RC-010)
+        /// be driven once it exists.
+        /// </summary>
+        public void NotifyDeviceMismatch(bool mismatch) => HasDeviceMismatch = mismatch;
+
+        /// <summary>
+        /// Surfaces (or clears) a sustained frame-parser error condition (HAZ-001/005).
+        /// The detector lands with the parser-error supervisor; this hook drives the defined
+        /// UI state (RC-010).
+        /// </summary>
+        public void NotifyParserError(bool parserError) => HasParserError = parserError;
+
+        /// <summary>
+        /// Recomputes the single effective <see cref="MonitoringState"/> (RC-010 / SRS-C-006) from
+        /// the current connection flags and per-sensor data quality, logging each transition.
+        /// </summary>
+        private void RecomputeMonitoringState()
+        {
+            bool anyInvalid = false;
+            bool anyStale = false;
+            lock (_sync)
+            {
+                foreach (var sensor in _sensorMap.Values)
+                {
+                    if (sensor.ValidationState == SensorValidationState.Invalid)
+                        anyInvalid = true;
+                    if (sensor.IsStale)
+                        anyStale = true;
+                }
+            }
+
+            var next = MonitoringStateResolver.Resolve(
+                isConnected: _isConnected,
+                isConnecting: _isConnecting,
+                hasProcessingFault: _hasProcessingFault,
+                hasDeviceMismatch: _hasDeviceMismatch,
+                hasParserError: _hasParserError,
+                anyInvalidValue: anyInvalid,
+                anyStale: anyStale);
+
+            if (next == _monitoringState)
+                return;
+
+            Log.Information("Monitoring state: {Previous} -> {Next}", _monitoringState, next);
+            MonitoringState = next;
         }
     }
 

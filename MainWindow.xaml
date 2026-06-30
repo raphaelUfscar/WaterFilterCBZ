@@ -15,6 +15,8 @@
         <local:InvertBoolConverter x:Key="InvertBoolConverter"/>
         <!-- Stale flag visibility -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <!-- System monitoring-state colour (RC-010 / SRS-C-006) -->
+        <local:MonitoringStateToBrushConverter x:Key="MonitoringStateToBrush"/>
     </Window.Resources>
 
     <DockPanel LastChildFill="True">
@@ -22,6 +24,15 @@
         <Border DockPanel.Dock="Top" Background="#2C3E50" Padding="10" Height="50">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Status:" Foreground="White" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
+                <!-- System monitoring-state chip (RC-010 / SRS-C-006): colour-coded so a degraded
+                     or fault state is never shown in a healthy colour. -->
+                <Border AutomationProperties.AutomationId="SystemStateChip"
+                        Background="{Binding MonitoringState, Converter={StaticResource MonitoringStateToBrush}}"
+                        CornerRadius="3" Padding="8,2" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock AutomationProperties.AutomationId="SystemStateText"
+                               Text="{Binding MonitoringStateLabel}"
+                               Foreground="White" FontSize="12" FontWeight="Bold"/>
+                </Border>
                 <TextBlock AutomationProperties.AutomationId="ConnectionStatusText" Text="{Binding ConnectionStatus}" Foreground="#27AE60" VerticalAlignment="Center" FontSize="14" FontWeight="Bold" Margin="0,0,20,0"/>
                 <TextBlock AutomationProperties.AutomationId="StatusMessageText" Text="{Binding StatusMessage}" Foreground="White" VerticalAlignment="Center" FontSize="12" Margin="0,0,30,0"/>
                 <TextBlock Text="Samples:" Foreground="White" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0"/>

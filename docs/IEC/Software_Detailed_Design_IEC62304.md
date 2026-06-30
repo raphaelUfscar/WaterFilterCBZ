@@ -31,11 +31,13 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 | `SensorRangeOverride` | `Models/SensorRangeOverride.cs` | AE-MODEL-001 |
 | `SensorRangeConfigLoader` | `Services/SensorRangeConfigLoader.cs` | AE-MODEL-001 |
 | `SensorSample` | `Models/SensorSample.cs` | AE-MODEL-001 |
+| `MonitoringState`, `MonitoringStateResolver` | `Models/MonitoringState.cs` | AE-MODEL-001, AE-VM-001 |
 | `SerialPortService` / `ISerialPortService` | `Services/SerialPortService.cs` | AE-ACQ-001, AE-PROTO-001 |
 | `SerialPortHelper` | `Utils/SerialPortHelper.cs` | AE-UTIL-001 |
 | `RelayCommand`, `RelayCommand<T>` | `ViewModels/RelayCommand.cs` | AE-VM-001 |
 | `ViewModelBase` | `ViewModels/ViewModelBase.cs` | AE-VM-001 |
 | `InvertBoolConverter` | `Converters/InvertBoolConverter.cs` | AE-UI-001 |
+| `MonitoringStateToBrushConverter` | `Converters/MonitoringStateToBrushConverter.cs` | AE-UI-001 |
 
 ## 3. Shared Constants
 
@@ -149,6 +151,14 @@ Conventions: types and members are named exactly as in source. "UI thread" means
 
 - **Responsibility:** Immutable-ish DTO for one decoded reading: `SensorId` (string, e.g. "0x01"), `Timestamp` (DateTime), `Value` (double). `ToString()` for logs.
 - **Traceability:** SRS-006.
+
+### 4.7a `MonitoringState` / `MonitoringStateResolver` (AE-MODEL-001, AE-VM-001) — RC-010 / SRS-C-006
+
+- **`MonitoringState`** enum: the 8 defined system states — `Disconnected`, `Connecting`, `ConnectedHealthy`, `Stale`, `InvalidValue`, `ParserError`, `DeviceMismatch`, `ProcessingFault`.
+- **`MonitoringStateResolver.Resolve(...)`** (pure): derives the single effective state from booleans (`isConnected`, `isConnecting`, `hasProcessingFault`, `hasDeviceMismatch`, `hasParserError`, `anyInvalidValue`, `anyStale`) with fixed precedence — processing-fault → not-connected (connecting vs disconnected) → device-mismatch → parser-error → invalid-value → stale → healthy. `Describe(state)` gives the operator label. No UI/threading dependencies, so the taxonomy is fully unit-verifiable.
+- **`SensorViewModel`** holds the flags (`IsConnecting`, `HasProcessingFault`, `HasDeviceMismatch`, `HasParserError`), aggregates `anyInvalid`/`anyStale` from `_sensorMap` under a lock, and exposes `MonitoringState` + `MonitoringStateLabel`; `RecomputeMonitoringState()` runs on every relevant change (connect/disconnect, sample, staleness tick, fault, clear) and logs transitions. `MonitoringStateToBrushConverter` maps the state to the status-bar chip colour so a degraded/fault state is never shown in a healthy colour.
+- **Detectors pending:** `parser-error` and `device-mismatch` are defined and presentable now; their *detectors* arrive with the parser-error supervisor and RC-003, wired via `NotifyParserError` / `NotifyDeviceMismatch`.
+- **Traceability:** SRS-C-006 / RC-010.
 
 ### 4.8 `SerialPortService` / `ISerialPortService` (AE-ACQ-001, AE-PROTO-001)
 

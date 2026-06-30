@@ -27,7 +27,7 @@ Until these are implemented **and verified**, residual risk for HAZ-001/003/004/
 | P1 | Receive-buffer maximum length (drop + log on overflow) | RC-005 / SRS-C-004 | HAZ-005 | ✅ | `MAX_RECEIVE_BUFFER_BYTES` (4096) cap in `SerialPortService.ParseReceiveBuffer`; verified by `SerialPortServiceFramingTests` (2026-06-30). |
 | P1 | Device identity + serial protocol/schema version check | RC-003 / SRS-C-002 | HAZ-003 | ❌ | Needs firmware-side scheme (OAI-006). Also enables using the decoded `UNIT_ID`. |
 | P2 | Processing-task failure supervision (surface degraded/error state) | RC-009 / SRS-C-005 | HAZ-004 | ✅ | `SerialPortService.ProcessingFaulted` → `SensorViewModel` degraded state + explicit reconnect; verified by `SerialPortServiceFramingTests` + `SensorViewModelProcessingFaultTests` (2026-06-30). |
-| P2 | Verified failure-state taxonomy in UI | RC-010 / SRS-C-006 | HAZ-001..005 | ⚠️ | disconnected/connecting/connected/stale/out-of-spec/invalid exist; parser-error, device-mismatch, processing-fault states still to define + test. |
+| P2 | Verified failure-state taxonomy in UI | RC-010 / SRS-C-006 | HAZ-001..005 | ✅ | `MonitoringState` enum + pure resolver + colour-coded status chip; all 8 states defined, derived, unit-verified (2026-06-30). Parser-error/device-mismatch detectors land with RC-003 + parser supervisor (hooks present). |
 | P3 | Configuration protection + audit (port, baud, ranges, timeout) | RC-011 / SRS-C-007 | — | ❌ | Validated load + change audit trail. Pairs with persistent config (see features roadmap §3). |
 | P3 | Stronger integrity code (CRC vs 8-bit additive checksum) | RC-001b / SRS-C-008 | HAZ-001 | 🔵 | Decide per risk analysis; current additive checksum may be sufficient. |
 
@@ -91,7 +91,7 @@ Software-engineering track (this repo):
 1. ~~**RC-005 buffer cap**~~ — done (2026-06-30).
 2. ~~**RC-008 ranges user-configurable**~~ — mechanism done (2026-06-30); still **confirm the numeric values** against the real device (§3).
 3. ~~**RC-009 task-failure supervision**~~ — done (2026-06-30).
-4. **RC-010 failure-state taxonomy** completion (incl. visual/color treatment of the processing-fault state).
+4. ~~**RC-010 failure-state taxonomy**~~ — done (2026-06-30); `MonitoringState` + colour-coded chip. (Parser-error/device-mismatch detectors arrive with RC-003 + parser supervisor.)
 5. **RC-011 config protection** + persistent configuration — now also covers integrity of `sensor-ranges.json`.
 6. **RC-003 device/protocol identity** (needs OAI-006) — also unlocks `UNIT_ID` use.
 7. **RC-004 sustained-rate stress test** — closes the HAZ-004 verification gap.
