@@ -12,6 +12,11 @@ namespace WaterFilterCBZ.Services
     {
         bool IsConnected { get; }
         event EventHandler<EventArgs>? ConnectionStatusChanged;
+        /// <summary>
+        /// Raised when the background acquisition/processing task terminates unexpectedly
+        /// (RC-009 / SRS-C-005 / HAZ-004). The payload is a short human-readable reason.
+        /// </summary>
+        event EventHandler<string>? ProcessingFaulted;
         void Connect();
         void Disconnect();
         void SetPort(string portName);
@@ -45,6 +50,7 @@ namespace WaterFilterCBZ.Services
         private DateTime? _sawStartByteAtUtc;
 
         public event EventHandler<EventArgs>? ConnectionStatusChanged;
+        public event EventHandler<string>? ProcessingFaulted;
 
         public bool IsConnected => _port?.IsOpen ?? false;
 
@@ -192,8 +198,18 @@ namespace WaterFilterCBZ.Services
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error in serial port processing task");
+                // RC-009 / SRS-C-005 / HAZ-004: the background processing task terminated
+                // unexpectedly. The serial port may still be open, so without this signal the
+                // UI would keep showing "connected" while monitoring is silently dead. Surface a
+                // fault so the operator notices and reconnects.
+                Log.Error(ex, "Serial processing task terminated unexpectedly");
+                OnProcessingFaulted($"processing task fault: {ex.Message}");
             }
+        }
+
+        private void OnProcessingFaulted(string reason)
+        {
+            ProcessingFaulted?.Invoke(this, reason);
         }
 
         private void ParseReceiveBuffer()

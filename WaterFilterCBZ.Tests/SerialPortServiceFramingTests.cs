@@ -305,6 +305,42 @@ public class SerialPortServiceFramingTests
         Assert.Empty(ReceiveBuffer(service));
     }
 
+    // ----- RC-009 / SRS-C-005: processing-task fault surfacing ------------
+
+    [Fact]
+    public async Task ProcessIncomingDataAsync_WhenProcessingThrows_RaisesProcessingFaulted()
+    {
+        // A downstream fault in the sample callback propagates out of the parse chain and
+        // terminates the processing task; the service must surface it rather than die silently.
+        var service = new SerialPortService("COM1", _ => throw new InvalidOperationException("boom"));
+        using var _ = service;
+        string? faultReason = null;
+        service.ProcessingFaulted += (_, reason) => faultReason = reason;
+        Enqueue(service, SimpleFrame());
+
+        using var cts = new CancellationTokenSource();
+        await InvokeProcessIncomingDataAsync(service, cts.Token); // completes once the task faults
+
+        Assert.NotNull(faultReason);
+        Assert.Contains("boom", faultReason);
+    }
+
+    [Fact]
+    public async Task ProcessIncomingDataAsync_NormalCancellation_DoesNotRaiseProcessingFaulted()
+    {
+        var (service, _) = NewService();
+        using var _ = service;
+        var faulted = false;
+        service.ProcessingFaulted += (_, _) => faulted = true;
+
+        using var cts = new CancellationTokenSource();
+        var loop = InvokeProcessIncomingDataAsync(service, cts.Token);
+        cts.Cancel();
+        await loop;
+
+        Assert.False(faulted); // cancellation is the expected, clean exit
+    }
+
     // ----- ProcessIncomingDataAsync ---------------------------------------
 
     [Fact]

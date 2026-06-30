@@ -50,7 +50,7 @@ For Class C, verification of safety-relevant units and risk controls should not 
 | Stale-data state transition | SRS-C-001 / RC-002 | **Done** — `SensorDisplayInfoTests` (becomes stale after 5 s, fresh within threshold, recovers on new sample, no-op when unchanged, `IsStale` PropertyChanged) |
 | Range/unit plausibility rejection | SRS-C-003 / RC-008 | **Done** — `SensorParameterTests` (classify normal/out-of-spec/invalid, NaN/Inf, inclusive bounds, registry map) + `SensorDisplayInfoTests` (reject keeps last good, out-of-spec displayed, recovery) |
 | Device/protocol-version rejection | SRS-C-002 / RC-003 | Test after feature implemented |
-| Processing-task failure surfaced | SRS-C-005 / RC-009 | Test after feature implemented |
+| Processing-task failure surfaced | SRS-C-005 / RC-009 | **Done** — `SerialPortServiceFramingTests` (fault raises `ProcessingFaulted`; clean cancellation does not) + `SensorViewModelProcessingFaultTests` (degraded state, PropertyChanged, reconnect clears fault) |
 
 ### 3.3 Unit acceptance criteria (5.5.3)
 

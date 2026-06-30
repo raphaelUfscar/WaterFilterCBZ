@@ -34,6 +34,7 @@ namespace WaterFilterCBZ.ViewModels
         private ObservableCollection<string> _availablePorts = new();
         private string? _selectedPort = "COM4";
         private bool _isConnected = false;
+        private bool _hasProcessingFault = false;
 
         public ObservableCollection<SensorDisplayInfo> Sensors { get; } = new();
         public ObservableCollection<string> AvailablePorts
@@ -52,6 +53,17 @@ namespace WaterFilterCBZ.ViewModels
         {
             get => _isConnected;
             set => SetProperty(ref _isConnected, value);
+        }
+
+        /// <summary>
+        /// True when the background acquisition/processing task has terminated unexpectedly
+        /// (RC-009 / SRS-C-005). Surfaced so the operator does not mistake a dead pipeline for
+        /// live monitoring; cleared on a successful reconnect.
+        /// </summary>
+        public bool HasProcessingFault
+        {
+            get => _hasProcessingFault;
+            private set => SetProperty(ref _hasProcessingFault, value);
         }
 
         public ICommand ClearDataCommand { get; }
@@ -399,6 +411,11 @@ namespace WaterFilterCBZ.ViewModels
         public void UpdateConnectionStatus(bool isConnected, string? comPort = null)
         {
             IsConnected = isConnected;
+
+            // A fresh, successful connection clears any prior processing fault (RC-009).
+            if (isConnected)
+                HasProcessingFault = false;
+
             ConnectionStatus = isConnected
                 ? $"Connected ({comPort})"
                 : "Disconnected";
@@ -408,6 +425,33 @@ namespace WaterFilterCBZ.ViewModels
                 : "No connection";
 
             Log.Information("Connection status: {Status}", ConnectionStatus);
+        }
+
+        /// <summary>
+        /// Surfaces an unexpected termination of the background acquisition/processing task
+        /// (RC-009 / SRS-C-005 / HAZ-004). Marks the session as faulted and degraded so the
+        /// operator does not mistake a dead pipeline for live monitoring; recovery requires an
+        /// explicit reconnect. Safe to call from a background thread.
+        /// </summary>
+        public void NotifyProcessingFault(string? detail = null)
+        {
+            void Apply()
+            {
+                HasProcessingFault = true;
+                IsConnected = false;
+                ConnectionStatus = "Processing fault";
+                StatusMessage = string.IsNullOrWhiteSpace(detail)
+                    ? "Monitoring stopped: background processing fault. Reconnect to resume."
+                    : $"Monitoring stopped ({detail}). Reconnect to resume.";
+            }
+
+            var dispatcher = App.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+                dispatcher.Invoke(Apply);
+            else
+                Apply();
+
+            Log.Error("Processing fault surfaced to operator: {Detail}", detail ?? "(no detail)");
         }
     }
 
